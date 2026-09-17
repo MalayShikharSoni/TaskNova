@@ -1,0 +1,55 @@
+package com.tasknova.controller.api;
+
+import com.tasknova.dto.auth.JwtResponse;
+import com.tasknova.dto.auth.LoginRequest;
+import com.tasknova.dto.auth.RegisterRequest;
+import com.tasknova.service.AuthService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+/**
+ * REST API for authentication.
+ * All endpoints are public (no JWT required).
+ *
+ * <p>POST /api/auth/login    — returns JWT
+ * <p>POST /api/auth/register — creates account
+ */
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthApiController {
+
+    private final AuthService authService;
+
+    /**
+     * Authenticate and receive a JWT token.
+     *
+     * @param request login credentials (email + password)
+     * @return 200 with {@link JwtResponse} body
+     */
+    @PostMapping("/login")
+    public ResponseEntity<JwtResponse> login(@Valid @RequestBody LoginRequest request) {
+        JwtResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Register a new user account.
+     *
+     * @param request registration details (username, email, password)
+     * @return 201 Created with success message
+     */
+    @PostMapping("/register")
+    public ResponseEntity<Map<String, String>> register(
+            @Valid @RequestBody RegisterRequest request) {
+        authService.register(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(Map.of("message", "Account created successfully. Please log in."));
+    }
+}
