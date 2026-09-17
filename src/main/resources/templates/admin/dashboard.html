@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/base :: head(pageTitle='Admin Dashboard')}"></head>
+<body>
+<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
+<th:block th:fragment="mainContent">
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Admin Dashboard</h1>
+        <p class="page-subtitle">System-wide overview &amp; analytics</p>
+    </div>
+    <span class="admin-badge-header">Admin Portal</span>
+</div>
+
+<!-- ── User Stats ── -->
+<p class="section-label-text">Users</p>
+<div class="stats-grid stats-grid--admin">
+    <div class="stat-card stat-card--admin-users">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.totalUsers}">0</span>
+            <span class="stat-label">Total Users</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card--admin-active">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.activeUsers}">0</span>
+            <span class="stat-label">Active Users</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card--admin-admins">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.totalAdmins}">0</span>
+            <span class="stat-label">Admins</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Task Stats ── -->
+<p class="section-label-text" style="margin-top:2rem">Tasks</p>
+<div class="stats-grid">
+    <div class="stat-card stat-card--total">
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.totalTasks}">0</span>
+            <span class="stat-label">Total Tasks</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card--todo">
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.todoTasks}">0</span>
+            <span class="stat-label">To Do</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card--inprogress">
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.inProgressTasks}">0</span>
+            <span class="stat-label">In Progress</span>
+        </div>
+    </div>
+    <div class="stat-card stat-card--done">
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.doneTasks}">0</span>
+            <span class="stat-label">Done</span>
+        </div>
+    </div>
+    <div class="stat-card" th:classappend="${stats.overdueTasks > 0} ? 'stat-card--overdue stat-card--alert' : 'stat-card--overdue'">
+        <div class="stat-info">
+            <span class="stat-value" th:text="${stats.overdueTasks}">0</span>
+            <span class="stat-label">Overdue</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Quick Links ── -->
+<div class="section-header" style="margin-top:2.5rem">
+    <h2 class="section-title">Quick Access</h2>
+</div>
+<div class="quick-links-grid">
+    <a th:href="@{/admin/users}" class="quick-link-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <span>Manage Users</span>
+    </a>
+    <a th:href="@{/admin/tasks}" class="quick-link-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span>All Tasks</span>
+    </a>
+    <a th:href="@{/admin/audit-logs}" class="quick-link-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Audit Logs</span>
+    </a>
+    <a href="/actuator/health" target="_blank" class="quick-link-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Health Check</span>
+    </a>
+</div>
+
+</th:block>
+</div>
+</body>
+</html>

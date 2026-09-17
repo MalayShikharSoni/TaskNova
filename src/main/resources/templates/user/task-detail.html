@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/base :: head(pageTitle=${task.title})}"></head>
+<body>
+<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
+<th:block th:fragment="mainContent">
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a th:href="@{/tasks}" class="breadcrumb-link">← Back to Tasks</a>
+</div>
+
+<div class="detail-layout">
+
+    <!-- ── Left: Task Info ── -->
+    <div class="detail-main">
+        <div class="card task-detail-card">
+
+            <!-- Header row -->
+            <div class="task-detail-header">
+                <div class="task-detail-meta">
+                    <span class="priority-badge"
+                          th:classappend="'priority-badge--' + ${#strings.toLowerCase(task.priority)}"
+                          th:text="${task.priority}">MEDIUM</span>
+                    <span class="status-badge"
+                          th:classappend="'status-badge--' + ${#strings.toLowerCase(#strings.replace(task.status.name(), '_', '-'))}"
+                          th:text="${task.statusLabel}">Todo</span>
+                    <span th:if="${task.overdue}" class="badge badge--overdue">Overdue</span>
+                </div>
+                <div class="task-detail-actions">
+                    <button class="btn btn--primary" id="saveTaskBtn">Save Changes</button>
+                    <button class="btn btn--danger" id="deleteTaskBtn"
+                            th:data-task-id="${task.id}"
+                            th:data-task-title="${task.title}">Delete</button>
+                </div>
+            </div>
+
+            <!-- Editable title -->
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" id="editTitle" class="form-input form-input--lg"
+                       th:value="${task.title}" maxlength="200"/>
+            </div>
+
+            <!-- Editable description -->
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="editDescription" class="form-input form-textarea" rows="5"
+                          th:text="${task.description}"></textarea>
+            </div>
+
+            <!-- Row: due date + priority + status -->
+            <div class="form-row form-row--3">
+                <div class="form-group">
+                    <label class="form-label">Due Date</label>
+                    <input type="date" id="editDueDate" class="form-input"
+                           th:value="${task.dueDate}"/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <select id="editPriority" class="form-input form-select">
+                        <option th:each="p : ${priorities}" th:value="${p}"
+                                th:text="${p.name()}"
+                                th:selected="${task.priority == p}">Priority</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="editStatus" class="form-input form-select">
+                        <option th:each="s : ${statuses}" th:value="${s}"
+                                th:text="${s.name().replace('_', ' ')}"
+                                th:selected="${task.status == s}">Status</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <div class="tag-picker" id="tagPicker"
+                     th:data-selected="${#strings.arrayJoin(task.tags.toArray(), ',')}"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ── Right: Sidebar metadata ── -->
+    <div class="detail-sidebar">
+        <div class="card info-card">
+            <h3 class="info-card-title">Task Info</h3>
+            <dl class="info-list">
+                <dt>Owner</dt>
+                <dd th:text="${task.ownerUsername}">—</dd>
+
+                <dt>Assignee</dt>
+                <dd th:text="${task.assigneeUsername ?: 'Unassigned'}">—</dd>
+
+                <dt>Created</dt>
+                <dd th:text="${task.createdAt != null ? #temporals.format(task.createdAt, 'MMM d, yyyy HH:mm') : '—'}">—</dd>
+
+                <dt>Last Updated</dt>
+                <dd th:text="${task.updatedAt != null ? #temporals.format(task.updatedAt, 'MMM d, yyyy HH:mm') : '—'}">—</dd>
+            </dl>
+        </div>
+
+        <!-- Quick status change -->
+        <div class="card info-card">
+            <h3 class="info-card-title">Quick Actions</h3>
+            <div class="quick-actions">
+                <button class="btn btn--ghost btn--full quick-status-btn"
+                        data-status="TODO">Mark as To Do</button>
+                <button class="btn btn--ghost btn--full quick-status-btn"
+                        data-status="IN_PROGRESS">Mark In Progress</button>
+                <button class="btn btn--success btn--full quick-status-btn"
+                        data-status="DONE">Mark as Done ✓</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="deleteModal" style="display:none">
+    <div class="modal modal--sm">
+        <div class="modal-header">
+            <h3 class="modal-title">Delete Task</h3>
+            <button class="modal-close" id="closeDeleteModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Delete <strong th:text="${task.title}">this task</strong>? This cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--ghost" id="cancelDelete">Cancel</button>
+            <button class="btn btn--danger" id="confirmDeleteBtn"
+                    th:data-task-id="${task.id}">Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden task id for JS -->
+<input type="hidden" id="currentTaskId" th:value="${task.id}"/>
+
+</th:block>
+</div>
+<script th:src="@{/js/tasks.js}"></script>
+</body>
+</html>

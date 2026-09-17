@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>403 Forbidden | TaskNova</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body class="error-body">
+<div class="error-page">
+    <div class="error-code">403</div>
+    <h1 class="error-title">Access Denied</h1>
+    <p class="error-message" th:text="${errorMessage ?: 'You do not have permission to view this page.'}">Access denied.</p>
+    <div class="error-actions">
+        <a href="javascript:history.back()" class="btn btn--ghost">← Go Back</a>
+        <a th:href="@{/dashboard}" class="btn btn--primary">Go to Dashboard</a>
+    </div>
+</div>
+</body>
+</html>
