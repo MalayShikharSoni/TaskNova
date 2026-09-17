@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# IDE files
+.idea
+*.iml
+.vscode
+*.code-workspace
+
+# Maven target (built inside Docker, not from host)
+target/
+
+# H2 database files (never commit these)
+data/
+*.mv.db
+*.trace.db
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files (not needed at runtime)
+src/test/
+
+# Scratch files
+SmartLearning.kt

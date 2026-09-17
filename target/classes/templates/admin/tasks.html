@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/base :: head(pageTitle='All Tasks')}"></head>
+<body>
+<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
+<th:block th:fragment="mainContent">
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">All Tasks</h1>
+        <p class="page-subtitle">System-wide task management</p>
+    </div>
+</div>
+
+<!-- Search -->
+<form th:action="@{/admin/tasks}" method="get" class="search-bar">
+    <div class="search-input-wrapper">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" name="search" class="form-input search-input"
+               th:value="${search}" placeholder="Search by title or description..."/>
+    </div>
+    <button type="submit" class="btn btn--primary">Search</button>
+    <a th:if="${search != null}" th:href="@{/admin/tasks}" class="btn btn--ghost">Clear</a>
+</form>
+
+<div class="card" th:if="${tasks.hasContent()}">
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Owner</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Tags</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="task : ${tasks.content}"
+                    th:classappend="${task.overdue} ? 'row--overdue' : ''">
+                    <td>
+                        <div class="task-title-cell">
+                            <span class="priority-dot"
+                                  th:classappend="'priority-dot--' + ${#strings.toLowerCase(task.priority)}"></span>
+                            <div>
+                                <p class="task-name" th:text="${task.title}">Title</p>
+                                <p class="task-desc" th:text="${#strings.abbreviate(task.description ?: '', 55)}"></p>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="user-chip" th:text="${task.ownerUsername}">owner</span>
+                    </td>
+                    <td>
+                        <span th:if="${task.assigneeUsername != null}" class="user-chip user-chip--assignee"
+                              th:text="${task.assigneeUsername}">assignee</span>
+                        <span th:if="${task.assigneeUsername == null}" class="text--muted">—</span>
+                    </td>
+                    <td>
+                        <span class="priority-badge"
+                              th:classappend="'priority-badge--' + ${#strings.toLowerCase(task.priority)}"
+                              th:text="${task.priority}">MEDIUM</span>
+                    </td>
+                    <td>
+                        <span class="status-badge"
+                              th:classappend="'status-badge--' + ${#strings.toLowerCase(#strings.replace(task.status.name(), '_', '-'))}"
+                              th:text="${task.statusLabel}">Todo</span>
+                    </td>
+                    <td>
+                        <span th:if="${task.dueDate != null}"
+                              th:text="${#temporals.format(task.dueDate, 'MMM d, yyyy')}"
+                              th:classappend="${task.overdue} ? 'text--danger' : ''">—</span>
+                        <span th:if="${task.dueDate == null}" class="text--muted">—</span>
+                    </td>
+                    <td>
+                        <div class="tag-list">
+                            <span th:each="tag : ${task.tags}" class="tag-chip" th:text="'#' + ${tag}">tag</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="empty-state" th:if="${!tasks.hasContent()}">
+    <p class="empty-title">No tasks found</p>
+    <p class="empty-subtitle" th:text="${search != null ? 'No results for: ' + search : 'No tasks in the system yet'}"></p>
+</div>
+
+<!-- Pagination -->
+<div class="pagination" th:if="${tasks.totalPages > 1}">
+    <a th:href="@{/admin/tasks(page=${currentPage - 1}, search=${search})}"
+       class="page-btn" th:classappend="${currentPage == 0} ? 'page-btn--disabled' : ''">← Prev</a>
+    <span class="page-info" th:text="'Page ' + ${currentPage + 1} + ' of ' + ${tasks.totalPages}">Page 1</span>
+    <a th:href="@{/admin/tasks(page=${currentPage + 1}, search=${search})}"
+       class="page-btn" th:classappend="${currentPage + 1 == tasks.totalPages} ? 'page-btn--disabled' : ''">Next →</a>
+</div>
+
+</th:block>
+</div>
+</body>
+</html>

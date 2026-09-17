@@ -10,47 +10,32 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 /**
- * DTO returned in API responses for a task.
- * Maps the Task entity to a clean, serializable shape.
+ * Response DTO for task data returned to the client.
+ * Contains all fields needed by Thymeleaf templates and REST consumers.
  */
 @Data
 @Builder
 public class TaskResponseDto {
 
-    private Long id;
-    private String title;
-    private String description;
-    private LocalDate dueDate;
-    private Priority priority;
-    private TaskStatus status;
-    private boolean overdue;
+    private Long        id;
+    private String      title;
+    private String      description;
+    private LocalDate   dueDate;
+    private Priority    priority;
+    private TaskStatus  status;
 
-    /** Owner info */
-    private Long ownerId;
-    private String ownerUsername;
+    /** Human-readable status label e.g. "In Progress" */
+    private String      statusLabel;
 
-    /** Assignee info (nullable) */
-    private Long assigneeId;
-    private String assigneeUsername;
+    private String      ownerUsername;
+    private String      assigneeUsername;
 
-    /** Tag names */
+    /** Tag names (not entities) for easy template rendering */
     private Set<String> tags;
+
+    /** True if past due date and not yet Done */
+    private boolean     overdue;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    /** Human-readable priority label */
-    public String getPriorityLabel() {
-        return priority != null ? priority.name() : "MEDIUM";
-    }
-
-    /** Human-readable status label */
-    public String getStatusLabel() {
-        if (status == null) return "TODO";
-        return switch (status) {
-            case TODO       -> "To Do";
-            case IN_PROGRESS -> "In Progress";
-            case DONE       -> "Done";
-        };
-    }
 }

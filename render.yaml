@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: tasknova
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    # ── Port ──────────────────────────────────────────────────
+    dockerContext: .
+    # ── Health Check ──────────────────────────────────────────
+    healthCheckPath: /actuator/health
+    # ── Persistent Disk for H2 file database ──────────────────
+    disk:
+      name: tasknova-data
+      mountPath: /app/data
+      sizeGB: 1
+    # ── Environment Variables ──────────────────────────────────
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:h2:file:/app/data/tasknova;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      - key: SPRING_DATASOURCE_USERNAME
+        value: sa
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: ""
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
+      - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: update
+      - key: SPRING_H2_CONSOLE_ENABLED
+        value: "false"
+      - key: LOGGING_LEVEL_COM_TASKNOVA
+        value: INFO
+      - key: JAVA_OPTS
+        value: "-Xmx400m -Xms200m"

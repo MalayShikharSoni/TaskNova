@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{layout/base :: head(pageTitle='My Tasks')}"></head>
+<body>
+<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
+<th:block th:fragment="mainContent">
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">My Tasks</h1>
+        <p class="page-subtitle">Manage and track all your tasks</p>
+    </div>
+    <button class="btn btn--primary" id="openCreateTaskModal">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        New Task
+    </button>
+</div>
+
+<!-- ── Filters ── -->
+<form th:action="@{/tasks}" method="get" class="filter-bar" id="filterForm">
+    <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select name="status" class="form-input form-select filter-select" id="statusFilter" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.name().replace('_',' ')}"
+                    th:selected="${selectedStatus == s}">Status</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">Priority</label>
+        <select name="priority" class="form-input form-select filter-select" id="priorityFilter" onchange="this.form.submit()">
+            <option value="">All Priorities</option>
+            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.name()}"
+                    th:selected="${selectedPriority == p}">Priority</option>
+        </select>
+    </div>
+    <a th:href="@{/tasks}" class="btn btn--ghost btn--sm">Clear filters</a>
+</form>
+
+<!-- ── Task Table ── -->
+<div class="card" th:if="${tasks.hasContent()}">
+    <div class="table-wrapper">
+        <table class="data-table" id="taskTable">
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Tags</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="task : ${tasks.content}"
+                    th:classappend="${task.overdue} ? 'row--overdue' : ''"
+                    th:id="'task-row-' + ${task.id}">
+                    <td>
+                        <div class="task-title-cell">
+                            <span class="priority-dot"
+                                  th:classappend="'priority-dot--' + ${#strings.toLowerCase(task.priority)}"></span>
+                            <div>
+                                <p class="task-name" th:text="${task.title}">Title</p>
+                                <p class="task-desc" th:text="${#strings.abbreviate(task.description ?: '', 60)}"></p>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="priority-badge"
+                              th:classappend="'priority-badge--' + ${#strings.toLowerCase(task.priority)}"
+                              th:text="${task.priority}">MEDIUM</span>
+                    </td>
+                    <td>
+                        <span class="status-badge"
+                              th:classappend="'status-badge--' + ${#strings.toLowerCase(#strings.replace(task.status.name(), '_', '-'))}"
+                              th:text="${task.statusLabel}">Todo</span>
+                    </td>
+                    <td>
+                        <span th:if="${task.dueDate != null}"
+                              th:text="${#temporals.format(task.dueDate, 'MMM d, yyyy')}"
+                              th:classappend="${task.overdue} ? 'text--danger' : ''">—</span>
+                        <span th:if="${task.dueDate == null}" class="text--muted">—</span>
+                    </td>
+                    <td>
+                        <div class="tag-list">
+                            <span th:each="tag : ${task.tags}" class="tag-chip" th:text="'#' + ${tag}">tag</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a th:href="@{/tasks/{id}(id=${task.id})}" class="btn btn--ghost btn--sm">Edit</a>
+                            <button class="btn btn--danger btn--sm"
+                                    th:data-task-id="${task.id}"
+                                    th:data-task-title="${task.title}"
+                                    onclick="confirmDelete(this)">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Empty state -->
+<div class="empty-state" th:if="${!tasks.hasContent()}">
+    <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+    </div>
+    <p class="empty-title">No tasks found</p>
+    <p class="empty-subtitle" th:text="${(selectedStatus != null or selectedPriority != null) ? 'Try clearing your filters' : 'Create your first task to get started'}"></p>
+    <button class="btn btn--primary" id="openCreateTaskModal2">New Task</button>
+</div>
+
+<!-- ── Pagination ── -->
+<div class="pagination" th:if="${tasks.totalPages > 1}">
+    <a th:href="@{/tasks(page=${currentPage - 1}, status=${selectedStatus}, priority=${selectedPriority})}"
+       class="page-btn" th:classappend="${currentPage == 0} ? 'page-btn--disabled' : ''"
+       th:attr="aria-disabled=${currentPage == 0}">← Prev</a>
+    <span class="page-info"
+          th:text="'Page ' + ${currentPage + 1} + ' of ' + ${tasks.totalPages}">Page 1</span>
+    <a th:href="@{/tasks(page=${currentPage + 1}, status=${selectedStatus}, priority=${selectedPriority})}"
+       class="page-btn"
+       th:classappend="${currentPage + 1 == tasks.totalPages} ? 'page-btn--disabled' : ''"
+       th:attr="aria-disabled=${currentPage + 1 == tasks.totalPages}">Next →</a>
+</div>
+
+<!-- ════════════════════════════════
+     Create Task Modal (same as dashboard)
+     ════════════════════════════════ -->
+<div class="modal-overlay" id="createTaskModal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Create New Task</h3>
+            <button class="modal-close" id="closeCreateTaskModal" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" for="taskTitle">Title <span class="required">*</span></label>
+                <input type="text" id="taskTitle" class="form-input" placeholder="What needs to be done?" maxlength="200"/>
+                <span class="form-error" id="taskTitleError"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="taskDescription">Description</label>
+                <textarea id="taskDescription" class="form-input form-textarea" rows="3" placeholder="Add details..."></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="taskDueDate">Due Date</label>
+                    <input type="date" id="taskDueDate" class="form-input"/>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="taskPriority">Priority</label>
+                    <select id="taskPriority" class="form-input form-select">
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM" selected>Medium</option>
+                        <option value="HIGH">High</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <div class="tag-picker" id="tagPicker"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--ghost" id="cancelCreateTask">Cancel</button>
+            <button class="btn btn--primary" id="submitCreateTask">
+                <span id="createTaskBtnText">Create Task</span>
+                <span id="createTaskSpinner" class="btn-spinner" style="display:none"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="deleteModal" style="display:none">
+    <div class="modal modal--sm">
+        <div class="modal-header">
+            <h3 class="modal-title">Delete Task</h3>
+            <button class="modal-close" id="closeDeleteModal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete <strong id="deleteTaskTitle"></strong>? This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn--ghost" id="cancelDelete">Cancel</button>
+            <button class="btn btn--danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+    </div>
+</div>
+
+</th:block>
+</div>
+<script th:src="@{/js/tasks.js}"></script>
+</body>
+</html>

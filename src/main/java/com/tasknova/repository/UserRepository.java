@@ -11,34 +11,22 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/**
- * Data access layer for {@link User} entities.
- */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByUsername(String username);
-
     boolean existsByEmail(String email);
 
     boolean existsByUsername(String username);
 
-    /** All users with a given role, paginated */
-    Page<User> findAllByRole(Role role, Pageable pageable);
-
-    /** Search users by username or email fragment (case-insensitive) */
-    @Query("""
-            SELECT u FROM User u
-            WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))
-               OR LOWER(u.email)    LIKE LOWER(CONCAT('%', :query, '%'))
-            """)
-    Page<User> searchUsers(@Param("query") String query, Pageable pageable);
-
-    /** Count active users */
     long countByActiveTrue();
 
-    /** Count users by role */
     long countByRole(Role role);
+
+    /** Full-text search across username and email */
+    @Query("SELECT u FROM User u WHERE " +
+           "LOWER(u.username) LIKE LOWER(CONCAT('%', :q, '%')) OR " +
+           "LOWER(u.email)    LIKE LOWER(CONCAT('%', :q, '%'))")
+    Page<User> searchUsers(@Param("q") String query, Pageable pageable);
 }
