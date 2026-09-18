@@ -63,8 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = document.getElementById('password').value;
       let valid = true;
 
-      if (!email || !isValidEmail(email)) {
-        showFieldError('emailError', 'Please enter a valid email address.');
+      if (!email) {
+        showFieldError('emailError', 'Please enter your email or username.');
         valid = false;
       }
       if (!password) {
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const body = await response.json();
 
         if (!response.ok) {
-          showAlert('loginError', 'loginErrorMsg', body.message || 'Invalid email or password.');
+          showAlert('loginError', 'loginErrorMsg', body.message || 'Invalid email/username or password.');
           return;
         }
 
@@ -95,10 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Redirect based on role
         const role = body.role || '';
-        window.location.href = role === 'ROLE_ADMIN' ? '/admin' : '/dashboard';
+        const isAdmin = role === 'ROLE_ADMIN' || role === 'ADMIN';
+        window.location.href = isAdmin ? '/admin' : '/dashboard';
 
       } catch (err) {
-        showAlert('loginError', 'loginErrorMsg', 'Network error. Please try again.');
+        // Fallback to form submit to /auth/login-process
+        loginForm.submit();
       } finally {
         setLoading('loginBtn', 'loginBtnText', 'loginSpinner', false);
       }

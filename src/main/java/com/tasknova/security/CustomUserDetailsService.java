@@ -41,18 +41,18 @@ public class CustomUserDetailsService implements UserDetailsService {
      */
     @Override
     @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        User user = userRepository.findByEmailOrUsername(identifier)
                 .orElseThrow(() -> {
-                    log.warn("Authentication failed — user not found for email: {}", email);
+                    log.warn("Authentication failed — user not found for identifier: {}", identifier);
                     return new UsernameNotFoundException(
-                            "No account found with email: " + email
+                            "No account found with email or username: " + identifier
                     );
                 });
 
         if (!user.isActive()) {
-            log.warn("Authentication blocked — account is deactivated for email: {}", email);
-            throw new UsernameNotFoundException("Account is deactivated: " + email);
+            log.warn("Authentication blocked — account is deactivated for identifier: {}", identifier);
+            throw new UsernameNotFoundException("Account is deactivated: " + identifier);
         }
 
         // Spring Security requires "ROLE_" prefix for hasRole() checks

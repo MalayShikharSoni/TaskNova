@@ -8,9 +8,22 @@
 const Auth = {
   TOKEN_KEY: 'tasknova_jwt',
 
-  getToken()       { return localStorage.getItem(this.TOKEN_KEY); },
+  getToken() {
+    let token = localStorage.getItem(this.TOKEN_KEY);
+    if (!token) {
+      const match = document.cookie.match(/(^|;\s*)tasknova_jwt=([^;]+)/);
+      if (match) {
+        token = decodeURIComponent(match[2]);
+        localStorage.setItem(this.TOKEN_KEY, token);
+      }
+    }
+    return token;
+  },
   setToken(token)  { localStorage.setItem(this.TOKEN_KEY, token); },
-  removeToken()    { localStorage.removeItem(this.TOKEN_KEY); },
+  removeToken()    {
+    localStorage.removeItem(this.TOKEN_KEY);
+    document.cookie = 'tasknova_jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  },
   isLoggedIn()     { return !!this.getToken(); },
 
   /** Returns Authorization header object for fetch calls */

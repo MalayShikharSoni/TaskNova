@@ -1,5 +1,6 @@
 package com.tasknova.service;
 
+import com.tasknova.config.JwtConfig;
 import com.tasknova.dto.auth.JwtResponse;
 import com.tasknova.dto.auth.LoginRequest;
 import com.tasknova.dto.auth.RegisterRequest;
@@ -9,15 +10,24 @@ import com.tasknova.exception.ResourceNotFoundException;
 import com.tasknova.exception.ValidationException;
 import com.tasknova.repository.UserRepository;
 import com.tasknova.security.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
 
 /**
  * Handles user registration and JWT-based login.
@@ -27,11 +37,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class AuthService {
 
-    private final UserRepository       userRepository;
-    private final PasswordEncoder      passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider     jwtTokenProvider;
-    private final AuditService         auditService;
+    private final UserRepository          userRepository;
+    private final PasswordEncoder         passwordEncoder;
+    private final AuthenticationManager    authenticationManager;
+    private final JwtTokenProvider        jwtTokenProvider;
+    private final JwtConfig               jwtConfig;
+    private final AuditService            auditService;
+
+    private final HttpSessionSecurityContextRepository securityContextRepository =
+            new HttpSessionSecurityContextRepository();
 
     // ────────────────────────────────────────────────────────────────
     //  Register
@@ -77,6 +91,11 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public JwtResponse login(LoginRequest request) {
+        return login(request, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public JwtResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -84,14 +103,29 @@ public class AuthService {
                 )
         );
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", request.getEmail()));
+        User user = userRepository.findByEmailOrUsername(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User", "identifier", request.getEmail()));
 
         String roleStr = "ROLE_" + user.getRole().name();
-        String token   = jwtTokenProvider.generateToken(request.getEmail(), roleStr, user.getId());
+        String token   = jwtTokenProvider.generateToken(user.getEmail(), roleStr, user.getId());
         long   expiry  = jwtTokenProvider.getExpirationEpoch(token);
 
-        log.info("User logged in: {}", request.getEmail());
+        if (httpRequest != null && httpResponse != null) {
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(authentication);
+            SecurityContextHolder.setContext(context);
+            securityContextRepository.saveContext(context, httpRequest, httpResponse);
+
+            ResponseCookie cookie = ResponseCookie.from("tasknova_jwt", token)
+                    .path("/")
+                    .maxAge(Duration.ofMillis(jwtConfig.getExpirationMs()))
+                    .sameSite("Lax")
+                    .httpOnly(false)
+                    .build();
+            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        }
+
+        log.info("User logged in: {}", user.getEmail());
         auditService.log(user.getEmail(), "USER_LOGIN", "User", user.getId(), "Login successful");
 
         return JwtResponse.builder()
@@ -100,7 +134,7 @@ public class AuthService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .role(user.getRole().name())
+                .role(roleStr)
                 .expiresAt(expiry)
                 .build();
     }

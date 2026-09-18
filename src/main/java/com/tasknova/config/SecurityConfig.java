@@ -1,11 +1,16 @@
 package com.tasknova.config;
 
-import com.tasknova.security.JwtAuthenticationFilter;
+import com.tasknova.entity.User;
+import com.tasknova.entity.enums.Role;
+import com.tasknova.repository.UserRepository;
 import com.tasknova.security.CustomUserDetailsService;
+import com.tasknova.security.JwtAuthenticationFilter;
+import com.tasknova.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -13,14 +18,16 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.time.Duration;
 
 /**
  * Central Spring Security configuration.
@@ -28,7 +35,7 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
  * <p>Dual-layer security:
  * <ul>
  *   <li>Session-based (form login) for Thymeleaf page navigation</li>
- *   <li>JWT stateless for /api/** REST endpoints</li>
+ *   <li>JWT authentication for /api/** REST endpoints and cookie-based page auth</li>
  * </ul>
  */
 @Configuration
@@ -39,6 +46,9 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtConfig jwtConfig;
+    private final UserRepository userRepository;
 
     // ────────────────────────────────────────────────────────────────
     //  Publicly accessible paths
@@ -65,10 +75,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Disable CSRF for REST API calls (JWT handles statefulness there)
-            // Keep enabled for Thymeleaf form pages
+            // Disable CSRF for REST API calls and login process
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/**", "/h2-console/**")
+                .ignoringRequestMatchers("/api/**", "/h2-console/**", "/auth/login-process")
             )
 
             // Allow H2 console frames
@@ -100,7 +109,29 @@ public class SecurityConfig {
             .formLogin(form -> form
                 .loginPage("/auth/login")
                 .loginProcessingUrl("/auth/login-process")
-                .defaultSuccessUrl("/dashboard", true)
+                .successHandler((request, response, authentication) -> {
+                    UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+                    User user = userRepository.findByEmailOrUsername(userDetails.getUsername()).orElse(null);
+                    if (user != null) {
+                        String roleStr = "ROLE_" + user.getRole().name();
+                        String token = jwtTokenProvider.generateToken(user.getEmail(), roleStr, user.getId());
+                        ResponseCookie cookie = ResponseCookie.from("tasknova_jwt", token)
+                                .path("/")
+                                .maxAge(Duration.ofMillis(jwtConfig.getExpirationMs()))
+                                .sameSite("Lax")
+                                .httpOnly(false)
+                                .build();
+                        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+                        if (user.getRole() == Role.ADMIN) {
+                            response.sendRedirect("/admin");
+                        } else {
+                            response.sendRedirect("/dashboard");
+                        }
+                    } else {
+                        response.sendRedirect("/dashboard");
+                    }
+                })
                 .failureUrl("/auth/login?error=true")
                 .usernameParameter("email")
                 .passwordParameter("password")
@@ -109,19 +140,19 @@ public class SecurityConfig {
 
             // Logout
             .logout(logout -> logout
-                .logoutRequestMatcher(new AntPathRequestMatcher("/auth/logout", "POST"))
+                .logoutRequestMatcher(new AntPathRequestMatcher("/auth/logout"))
                 .logoutSuccessUrl("/auth/login?logout=true")
                 .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID")
+                .deleteCookies("JSESSIONID", "tasknova_jwt")
                 .permitAll()
             )
 
-            // Session management — stateful for pages, stateless for API (JWT filter handles it)
+            // Session management — stateful for pages, JWT filter adds auth per request
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
 
-            // JWT filter runs before username/password filter (guards /api/**)
+            // JWT filter runs before username/password filter (guards /api/** and validates cookie)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
             // Use our custom UserDetailsService

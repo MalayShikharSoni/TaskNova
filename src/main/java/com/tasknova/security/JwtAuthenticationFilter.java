@@ -3,34 +3,29 @@ package com.tasknova.security;
 import com.tasknova.config.JwtConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Intercepts every HTTP request and extracts a JWT from the
- * {@code Authorization: Bearer <token>} header.
+ * Intercepts HTTP requests and extracts a JWT from either:
+ * 1) {@code Authorization: Bearer <token>} header (REST APIs)
+ * 2) {@code tasknova_jwt} Cookie (Web UI page navigations)
  *
  * <p>If the token is valid, it populates the Spring Security
- * {@link SecurityContextHolder} so downstream filters and
- * controllers can access the authenticated principal.
- *
- * <p>This filter only activates for {@code /api/**} endpoints.
- * Thymeleaf page security is handled by the session-based form login.
+ * {@link SecurityContextHolder} with a {@link UserDetails} principal.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,14 +33,21 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
+    private final CustomUserDetailsService userDetailsService;
+
+    public static final String JWT_COOKIE_NAME = "tasknova_jwt";
 
     // ────────────────────────────────────────────────────────────────
-    //  Skip non-API routes to avoid interfering with session auth
+    //  Skip static asset paths only
     // ────────────────────────────────────────────────────────────────
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return !path.startsWith("/api/");
+        return path.startsWith("/css/")
+                || path.startsWith("/js/")
+                || path.startsWith("/assets/")
+                || path.startsWith("/static/")
+                || path.equals("/favicon.ico");
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -63,43 +65,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String email  = tokenProvider.getEmailFromToken(jwt);
-                String roles  = tokenProvider.getRolesFromToken(jwt);
                 Long   userId = tokenProvider.getUserIdFromToken(jwt);
 
-                // Build authorities from roles string e.g. "ROLE_USER,ROLE_ADMIN"
-                List<SimpleGrantedAuthority> authorities = Arrays.stream(roles.split(","))
-                        .filter(StringUtils::hasText)
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(email, null, authorities);
+                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
                 authentication.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
 
-                // Store userId as a request attribute for downstream use
+                // Store userId as a request attribute for downstream controllers
                 request.setAttribute("authenticatedUserId", userId);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 log.debug("JWT authentication set for user: {}", email);
             }
         } catch (Exception ex) {
-            log.error("Could not set JWT authentication in security context: {}", ex.getMessage());
+            log.warn("Could not set JWT authentication in security context: {}", ex.getMessage());
         }
 
         filterChain.doFilter(request, response);
     }
 
     // ────────────────────────────────────────────────────────────────
-    //  Helper: strip "Bearer " prefix
+    //  Helper: extract token from Authorization header or Cookie
     // ────────────────────────────────────────────────────────────────
     private String extractTokenFromRequest(HttpServletRequest request) {
+        // 1. Try Authorization header
         String bearerToken = request.getHeader(JwtConfig.HEADER_NAME);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(JwtConfig.TOKEN_PREFIX)) {
             return bearerToken.substring(JwtConfig.TOKEN_PREFIX.length());
         }
+
+        // 2. Try tasknova_jwt cookie
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (JWT_COOKIE_NAME.equals(cookie.getName()) && StringUtils.hasText(cookie.getValue())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
         return null;
     }
 }
