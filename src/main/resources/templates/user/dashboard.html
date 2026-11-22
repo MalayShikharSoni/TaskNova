@@ -1,178 +1,192 @@
 <!DOCTYPE html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{layout/base :: head(pageTitle='Dashboard')}"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='Today', content=~{::content}, scripts=~{::scripts})}">
 <body>
-<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
-<th:block th:fragment="mainContent">
+<th:block th:fragment="content"
+          th:with="now=${#temporals.createNow()},
+                   open=${dash.total - dash.done},
+                   soon=${dash.dueSoon.size()}">
 
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">Welcome back, <strong th:text="${user.username}">User</strong> 👋</p>
-    </div>
-    <button class="btn btn--primary" id="openCreateTaskModal">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        New Task
-    </button>
-</div>
-
-<!-- ── Stat Cards ── -->
-<div class="stats-grid">
-    <div class="stat-card stat-card--total">
-        <div class="stat-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-            </svg>
+    <header class="page-head">
+        <div>
+            <p class="kicker">
+                <span th:text="${#temporals.format(now, 'EEEE, d MMMM yyyy')}">Thursday, 12 November 2026</span>
+                <span class="dot"></span>
+                <span th:text="${'Day ' + #temporals.format(now, 'D')}">Day 316</span>
+            </p>
+            <h1><span data-greeting>Hello</span>, <span class="scribble" th:text="${user.username}">demo_user</span>.</h1>
+            <p class="lede">
+                <th:block th:if="${dash.total == 0}">A clean sheet. Write the first thing down and the rest tends to follow.</th:block>
+                <th:block th:if="${dash.total > 0 and open == 0}">Everything on your list is done. Go outside for a bit.</th:block>
+                <th:block th:if="${open > 0}">
+                    You have <strong th:text="${open}">5</strong> open
+                    <th:block th:text="${open == 1 ? 'task' : 'tasks'}">tasks</th:block><th:block th:if="${soon > 0}">,
+                    <span class="marker" th:text="${soon + ' due within a week'}">3 due within a week</span></th:block><th:block th:if="${dash.overdue > 0}">,
+                    and <strong class="danger-text" th:text="${dash.overdue + ' running late'}">1 running late</strong></th:block>.
+                </th:block>
+            </p>
         </div>
-        <div class="stat-info">
-            <span class="stat-value" th:text="${totalTasks}">0</span>
-            <span class="stat-label">Total Tasks</span>
-        </div>
-    </div>
-    <div class="stat-card stat-card--todo">
-        <div class="stat-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-        </div>
-        <div class="stat-info">
-            <span class="stat-value" th:text="${todoCount}">0</span>
-            <span class="stat-label">To Do</span>
-        </div>
-    </div>
-    <div class="stat-card stat-card--inprogress">
-        <div class="stat-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-            </svg>
-        </div>
-        <div class="stat-info">
-            <span class="stat-value" th:text="${inProgCount}">0</span>
-            <span class="stat-label">In Progress</span>
-        </div>
-    </div>
-    <div class="stat-card stat-card--done">
-        <div class="stat-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12"/>
-            </svg>
-        </div>
-        <div class="stat-info">
-            <span class="stat-value" th:text="${doneCount}">0</span>
-            <span class="stat-label">Done</span>
-        </div>
-    </div>
-    <div class="stat-card stat-card--overdue" th:classappend="${overdueCount > 0} ? 'stat-card--alert' : ''">
-        <div class="stat-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-        </div>
-        <div class="stat-info">
-            <span class="stat-value" th:text="${overdueCount}">0</span>
-            <span class="stat-label">Overdue</span>
-        </div>
-    </div>
-</div>
-
-<!-- ── Recent Tasks ── -->
-<div class="section-header">
-    <h2 class="section-title">Recent Tasks</h2>
-    <a th:href="@{/tasks}" class="section-link">View all →</a>
-</div>
-
-<div class="task-list" th:if="${not #lists.isEmpty(recentTasks)}">
-    <div th:each="task : ${recentTasks}" class="task-card"
-         th:classappend="${task.overdue} ? 'task-card--overdue' : ''">
-        <div class="task-card-left">
-            <span class="priority-dot"
-                  th:classappend="'priority-dot--' + ${#strings.toLowerCase(task.priority)}"></span>
-            <div>
-                <p class="task-card-title" th:text="${task.title}">Task title</p>
-                <p class="task-card-meta">
-                    <span th:if="${task.dueDate != null}"
-                          th:text="'Due ' + ${#temporals.format(task.dueDate, 'MMM d')}">Due date</span>
-                    <span th:if="${task.overdue}" class="badge badge--overdue">Overdue</span>
-                </p>
-            </div>
-        </div>
-        <div class="task-card-right">
-            <span class="status-badge"
-                  th:classappend="'status-badge--' + ${#strings.toLowerCase(#strings.replace(task.status.name(), '_', '-'))}"
-                  th:text="${task.statusLabel}">Status</span>
-            <a th:href="@{/tasks/{id}(id=${task.id})}" class="btn btn--ghost btn--sm">View</a>
-        </div>
-    </div>
-</div>
-
-<div class="empty-state" th:if="${#lists.isEmpty(recentTasks)}">
-    <div class="empty-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-    </div>
-    <p class="empty-title">No tasks yet</p>
-    <p class="empty-subtitle">Create your first task to get started</p>
-    <button class="btn btn--primary" id="openCreateTaskModal2">Create a task</button>
-</div>
-
-<!-- ════════════════════════════════
-     Create Task Modal
-     ════════════════════════════════ -->
-<div class="modal-overlay" id="createTaskModal" style="display:none">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title">Create New Task</h3>
-            <button class="modal-close" id="closeCreateTaskModal" aria-label="Close">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label class="form-label" for="taskTitle">Title <span class="required">*</span></label>
-                <input type="text" id="taskTitle" class="form-input" placeholder="What needs to be done?" maxlength="200"/>
-                <span class="form-error" id="taskTitleError"></span>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="taskDescription">Description</label>
-                <textarea id="taskDescription" class="form-input form-textarea" rows="3" placeholder="Add details..."></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="taskDueDate">Due Date</label>
-                    <input type="date" id="taskDueDate" class="form-input"/>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="taskPriority">Priority</label>
-                    <select id="taskPriority" class="form-input form-select">
-                        <option value="LOW">Low</option>
-                        <option value="MEDIUM" selected>Medium</option>
-                        <option value="HIGH">High</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Tags</label>
-                <div class="tag-picker" id="tagPicker"></div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn--ghost" id="cancelCreateTask">Cancel</button>
-            <button class="btn btn--primary" id="submitCreateTask">
-                <span id="createTaskBtnText">Create Task</span>
-                <span id="createTaskSpinner" class="btn-spinner" style="display:none"></span>
+        <div class="page-actions">
+            <a href="/tasks/board" class="btn btn--ghost">
+                <svg class="i"><use href="/assets/icons.svg#i-board"/></svg> Board
+            </a>
+            <button class="btn btn--primary" type="button" data-open-create>
+                <svg class="i"><use href="/assets/icons.svg#i-plus"/></svg> New task
             </button>
         </div>
-    </div>
-</div>
+    </header>
 
+    <!-- Quick add -->
+    <form class="quick-add reveal-up" id="quickAdd" autocomplete="off">
+        <svg class="i i-lg"><use href="/assets/icons.svg#i-pen"/></svg>
+        <input type="text" name="title" maxlength="200" placeholder="Jot a task and press Enter…" aria-label="Quick add a task"/>
+        <span class="kbd">Enter</span>
+    </form>
+
+    <!-- Ledger -->
+    <section class="ledger reveal-up" aria-label="Task counts">
+        <a class="ledger-cell" href="/tasks">
+            <span class="ledger-num" th:text="${dash.total}">0</span>
+            <span class="ledger-label">All tasks</span>
+        </a>
+        <a class="ledger-cell ledger-cell--todo" href="/tasks?status=TODO">
+            <span class="ledger-num" th:text="${dash.todo}">0</span>
+            <span class="ledger-label">To do</span>
+        </a>
+        <a class="ledger-cell ledger-cell--progress" href="/tasks?status=IN_PROGRESS">
+            <span class="ledger-num" th:text="${dash.inProgress}">0</span>
+            <span class="ledger-label">In progress</span>
+        </a>
+        <a class="ledger-cell ledger-cell--done" href="/tasks?status=DONE">
+            <span class="ledger-num" th:text="${dash.done}">0</span>
+            <span class="ledger-label">Done</span>
+        </a>
+        <div class="ledger-cell ledger-cell--overdue" th:classappend="${dash.overdue > 0} ? 'is-hot'">
+            <span class="ledger-num" th:text="${dash.overdue}">0</span>
+            <span class="ledger-label">Overdue</span>
+        </div>
+    </section>
+
+    <!-- This week -->
+    <section class="card card-pad reveal-up" style="margin-top:1.8rem" aria-label="This week">
+        <div class="section-head">
+            <div>
+                <p class="kicker">The week ahead</p>
+                <h2 style="margin-top:.3rem">This <em>week</em></h2>
+            </div>
+            <span class="mono muted" style="font-size:.75rem">Open tasks by due date</span>
+        </div>
+        <div class="week">
+            <div class="day" th:each="d : ${dash.week}" th:classappend="${d.today()} ? 'is-today'"
+                 th:title="${d.count() + (d.count() == 1 ? ' task due' : ' tasks due')}">
+                <span class="day-name" th:text="${d.today() ? 'Today' : #temporals.format(d.date(), 'EEE')}">Mon</span>
+                <span class="day-num" th:text="${#temporals.format(d.date(), 'd')}">12</span>
+                <span class="day-count" th:if="${d.count() > 0}" th:text="${d.count() + ' due'}">1 due</span>
+                <div class="day-load" th:if="${d.count() > 0}" aria-hidden="true">
+                    <i th:each="n : ${#numbers.sequence(1, d.count() > 8 ? 8 : d.count())}"></i>
+                </div>
+                <span class="day-empty" th:if="${d.count() == 0}">free</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="dash-grid" style="margin-top:1.8rem">
+        <div class="stack">
+            <section class="card reveal-up">
+                <div class="card-head">
+                    <div>
+                        <p class="kicker">Next seven days</p>
+                        <h2>Coming up</h2>
+                    </div>
+                    <a class="btn btn--quiet btn--sm" href="/tasks">See all →</a>
+                </div>
+                <ul class="rows" th:if="${!dash.dueSoon.isEmpty()}">
+                    <th:block th:each="t : ${dash.dueSoon}"><li th:replace="~{fragments/ui :: taskRow(${t})}"></li></th:block>
+                </ul>
+                <div class="empty empty--sm" th:if="${dash.dueSoon.isEmpty()}">
+                    <svg th:replace="~{fragments/ui :: artCup}"></svg>
+                    <h3>Nothing pressing</h3>
+                    <p>No open tasks are due in the next week. Enjoy the quiet.</p>
+                </div>
+            </section>
+
+            <section class="card reveal-up">
+                <div class="card-head">
+                    <div>
+                        <p class="kicker">Fresh on the pile</p>
+                        <h2>Recently added</h2>
+                    </div>
+                </div>
+                <ul class="rows" th:if="${!dash.recent.isEmpty()}">
+                    <th:block th:each="t : ${dash.recent}"><li th:replace="~{fragments/ui :: taskRow(${t})}"></li></th:block>
+                </ul>
+                <div class="empty" th:if="${dash.recent.isEmpty()}">
+                    <svg th:replace="~{fragments/ui :: artPlane}"></svg>
+                    <h3>No tasks yet</h3>
+                    <p>Use the line above, or press <span class="kbd">N</span> anywhere.</p>
+                    <button class="btn btn--primary" type="button" data-open-create>Write your first task</button>
+                </div>
+            </section>
+        </div>
+
+        <aside class="stack">
+            <section class="card card-pad ring-card reveal-up">
+                <div class="ring" th:with="c=314.16">
+                    <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <circle class="track" cx="60" cy="60" r="50" fill="none" stroke-width="12"/>
+                        <circle class="bar" cx="60" cy="60" r="50" fill="none" stroke-width="12"
+                                stroke-dasharray="314.16"
+                                th:style="'stroke-dashoffset:' + ${c * (100 - dash.completionPercent) / 100}"/>
+                    </svg>
+                    <span class="ring-num"><span th:text="${dash.completionPercent}">0</span><small>%</small></span>
+                </div>
+                <div>
+                    <p class="kicker">Progress</p>
+                    <h3 style="margin:.35rem 0 .3rem" th:text="${dash.completionPercent >= 75 ? 'Nearly there.' : (dash.completionPercent >= 40 ? 'Good momentum.' : 'Warming up.')}">Warming up.</h3>
+                    <p class="muted" style="font-size:.88rem">
+                        <span th:text="${dash.done}">0</span> of <span th:text="${dash.total}">0</span> tasks finished.
+                    </p>
+                </div>
+            </section>
+
+            <section class="card card-pad reveal-up"
+                     th:with="m1=${dash.highOpen > dash.mediumOpen ? dash.highOpen : dash.mediumOpen},
+                              mx=${m1 > dash.lowOpen ? m1 : dash.lowOpen}">
+                <p class="kicker">Open, by weight</p>
+                <h3 style="margin:.35rem 0 1.1rem">What's on your plate</h3>
+                <div class="bars">
+                    <div class="bar-row">
+                        <span class="mono">High</span>
+                        <div class="bar-track"><div class="bar-fill bar-fill--high" th:style="'width:' + ${mx == 0 ? 0 : dash.highOpen * 100 / mx} + '%'"></div></div>
+                        <span class="count" th:text="${dash.highOpen}">0</span>
+                    </div>
+                    <div class="bar-row">
+                        <span class="mono">Medium</span>
+                        <div class="bar-track"><div class="bar-fill bar-fill--medium" th:style="'width:' + ${mx == 0 ? 0 : dash.mediumOpen * 100 / mx} + '%'"></div></div>
+                        <span class="count" th:text="${dash.mediumOpen}">0</span>
+                    </div>
+                    <div class="bar-row">
+                        <span class="mono">Low</span>
+                        <div class="bar-track"><div class="bar-fill bar-fill--low" th:style="'width:' + ${mx == 0 ? 0 : dash.lowOpen * 100 / mx} + '%'"></div></div>
+                        <span class="count" th:text="${dash.lowOpen}">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card card--paper card-pad reveal-up">
+                <p class="kicker">A small habit</p>
+                <p class="serif" style="font-size:1.45rem;margin-top:.5rem;line-height:1.25">
+                    “Pick the one task that makes the others easier, and do that first.”
+                </p>
+            </section>
+        </aside>
+    </div>
+
+    <dialog th:replace="~{fragments/ui :: createModal}"></dialog>
 </th:block>
-</div>
-<script th:src="@{/js/tasks.js}"></script>
+
+<th:block th:fragment="scripts">
+    <script src="/js/tasks.js"></script>
+</th:block>
 </body>
 </html>

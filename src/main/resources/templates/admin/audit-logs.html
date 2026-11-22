@@ -1,85 +1,48 @@
 <!DOCTYPE html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{layout/base :: head(pageTitle='Audit Logs')}"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='Audit log', content=~{::content}, scripts=~{})}">
 <body>
-<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
-<th:block th:fragment="mainContent">
+<th:block th:fragment="content" th:with="ap=${actor != '' ? actor : null}">
 
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Audit Logs</h1>
-        <p class="page-subtitle">Complete trail of all system actions</p>
-    </div>
-</div>
+    <header class="page-head">
+        <div>
+            <p class="kicker"><span>Admin</span><span class="dot"></span>
+                <span th:text="${logs.totalElements + (logs.totalElements == 1 ? ' entry' : ' entries')}">42 entries</span></p>
+            <h1>The <em>audit log</em></h1>
+            <p class="lede">An append-only record of who did what, and when. Newest at the top.</p>
+        </div>
+    </header>
 
-<!-- Filter by actor -->
-<form th:action="@{/admin/audit-logs}" method="get" class="search-bar">
-    <div class="search-input-wrapper">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" name="actor" class="form-input search-input"
-               th:value="${actor}" placeholder="Filter by username or email..."/>
-    </div>
-    <button type="submit" class="btn btn--primary">Filter</button>
-    <a th:if="${actor != null}" th:href="@{/admin/audit-logs}" class="btn btn--ghost">Clear</a>
-</form>
+    <form class="toolbar" action="/admin/audit-logs" method="get" role="search">
+        <div class="search">
+            <svg class="i"><use href="/assets/icons.svg#i-search"/></svg>
+            <input class="input" type="search" name="actor" id="searchInput" th:value="${actor}" placeholder="Filter by who did it (email or part of it)…" aria-label="Filter by actor"/>
+        </div>
+        <button class="btn btn--ink" type="submit">Filter</button>
+        <a th:if="${actor != ''}" class="btn btn--quiet btn--sm" href="/admin/audit-logs">Clear</a>
+    </form>
 
-<div class="card" th:if="${logs.hasContent()}">
-    <div class="table-wrapper">
-        <table class="data-table audit-table">
-            <thead>
-                <tr>
-                    <th>Timestamp</th>
-                    <th>Actor</th>
-                    <th>Action</th>
-                    <th>Target</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr th:each="log : ${logs.content}">
-                    <td class="audit-time"
-                        th:text="${#temporals.format(log.timestamp, 'MMM d, HH:mm:ss')}">—</td>
-                    <td>
-                        <span class="user-chip" th:text="${log.actorUsername}">actor</span>
-                    </td>
-                    <td>
-                        <span class="action-badge"
-                              th:classappend="${log.action.contains('DELETE') or log.action.contains('DEACTIVATE')} ? 'action-badge--danger' :
-                                              (${log.action.contains('CREATE') or log.action.contains('REGISTER')} ? 'action-badge--success' :
-                                              'action-badge--info')"
-                              th:text="${log.action}">ACTION</span>
-                    </td>
-                    <td>
-                        <span th:if="${log.targetType != null}"
-                              th:text="${log.targetType + (log.targetId != null ? ' #' + log.targetId : '')}">—</span>
-                        <span th:if="${log.targetType == null}" class="text--muted">—</span>
-                    </td>
-                    <td class="audit-details" th:text="${log.details ?: '—'}">—</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+    <section class="card" th:if="${logs.hasContent()}">
+        <ul class="timeline" style="padding:1rem 0">
+            <th:block th:each="log : ${logs.content}"><li th:replace="~{fragments/ui :: auditItem(${log})}"></li></th:block>
+        </ul>
+    </section>
 
-<div class="empty-state" th:if="${!logs.hasContent()}">
-    <p class="empty-title">No audit logs</p>
-    <p class="empty-subtitle">System activity will appear here as users interact with TaskNova.</p>
-</div>
+    <section class="card" th:unless="${logs.hasContent()}">
+        <div class="empty">
+            <svg th:replace="~{fragments/ui :: artCup}"></svg>
+            <h3>Nothing recorded</h3>
+            <p th:text="${actor != '' ? 'No entries for “' + actor + '”.' : 'Activity will appear here as people use TaskNova.'}">Nothing yet.</p>
+        </div>
+    </section>
 
-<!-- Pagination -->
-<div class="pagination" th:if="${logs.totalPages > 1}">
-    <a th:href="@{/admin/audit-logs(page=${currentPage - 1}, actor=${actor})}"
-       class="page-btn" th:classappend="${currentPage == 0} ? 'page-btn--disabled' : ''">← Prev</a>
-    <span class="page-info" th:text="'Page ' + ${currentPage + 1} + ' of ' + ${logs.totalPages}">Page 1</span>
-    <a th:href="@{/admin/audit-logs(page=${currentPage + 1}, actor=${actor})}"
-       class="page-btn" th:classappend="${currentPage + 1 == logs.totalPages} ? 'page-btn--disabled' : ''">Next →</a>
-</div>
-
+    <nav class="pager" th:if="${logs.totalPages > 1}" aria-label="Pagination">
+        <a class="btn btn--ghost btn--sm" th:href="@{/admin/audit-logs(page=${currentPage - 1}, actor=${ap})}" th:attr="aria-disabled=${logs.first}">
+            <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-left"/></svg> Newer</a>
+        <span class="mono" th:text="${'Page ' + (currentPage + 1) + ' of ' + logs.totalPages}">Page 1</span>
+        <a class="btn btn--ghost btn--sm" th:href="@{/admin/audit-logs(page=${currentPage + 1}, actor=${ap})}" th:attr="aria-disabled=${logs.last}">
+            Older <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-right"/></svg></a>
+    </nav>
 </th:block>
-</div>
 </body>
 </html>

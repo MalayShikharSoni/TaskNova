@@ -1,106 +1,93 @@
-/* ============================================================
+/* ==========================================================================
    TaskNova — admin.js
-   Handles admin user management actions via REST API.
-   Toggle active status and change user roles.
-   ============================================================ */
+   Role changes and pause/restore on the People pages.
+   The server refuses changes to your own account; those buttons aren't rendered.
+   ========================================================================== */
+(function () {
+  'use strict';
+  const { $, api, Toast, Confirm } = window.TN;
 
-document.addEventListener('DOMContentLoaded', () => {
-  // No auto-init needed — functions are called from inline onclick handlers.
-});
+  function paintRole(scope, role) {
+    const pill = $('[data-role-pill]', scope);
+    if (pill) {
+      pill.className = `pill ${role === 'ADMIN' ? 'pill--admin' : 'pill--user'}`;
+      pill.textContent = role === 'ADMIN' ? 'Admin' : 'Member';
+    }
+    const roleBtn = $('[data-action="role"]', scope);
+    if (roleBtn) {
+      roleBtn.dataset.role = role;
+      roleBtn.textContent = role === 'ADMIN' ? 'Make member' : 'Make admin';
+    }
+    // Admin accounts can't be paused, so hide that action for them
+    const toggle = $('[data-action="toggle"]', scope);
+    if (toggle) toggle.hidden = role === 'ADMIN';
+  }
 
-/**
- * Toggle a user's active/inactive status.
- * Called from the users table's toggle button.
- *
- * @param {HTMLElement} btn - The button element with data-user-id and data-active
- */
-async function toggleUserActive(btn) {
-  const userId   = btn.dataset.userId;
-  const isActive = btn.dataset.active === 'true';
-  const action   = isActive ? 'Deactivate' : 'Activate';
+  function paintActive(scope, active) {
+    const pill = $('[data-active-pill]', scope);
+    if (pill) {
+      pill.className = `pill ${active ? 'pill--active' : 'pill--inactive'}`;
+      pill.textContent = active ? 'Active' : 'Paused';
+    }
+    const toggle = $('[data-action="toggle"]', scope);
+    if (toggle) {
+      toggle.dataset.active = String(active);
+      toggle.textContent = active ? 'Pause' : 'Restore';
+    }
+  }
 
-  if (!confirm(`${action} this user?`)) return;
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action="role"], [data-action="toggle"]');
+    if (!btn) return;
+    const id = btn.dataset.userId;
+    const name = btn.dataset.name;
+    const scope = document.getElementById(`user-${id}`) || document;
 
-  btn.disabled    = true;
-  btn.textContent = 'Working...';
-
-  try {
-    const response = await apiCall(`/api/admin/users/${userId}/toggle-active`, {
-      method: 'PATCH',
-    });
-    const updated = await parseJson(response);
-
-    Toast.success(`User ${updated.active ? 'activated' : 'deactivated'} successfully.`);
-
-    // Update the row in-place without a full page reload
-    const row = document.getElementById(`user-row-${userId}`);
-    if (row) {
-      // Update status indicator
-      const statusEl = row.querySelector('.status-indicator');
-      if (statusEl) {
-        statusEl.className = `status-indicator status-indicator--${updated.active ? 'active' : 'inactive'}`;
-        statusEl.textContent = updated.active ? 'Active' : 'Inactive';
+    if (btn.dataset.action === 'role') {
+      const toAdmin = btn.dataset.role !== 'ADMIN';
+      const ok = await Confirm.ask({
+        title: toAdmin ? `Make ${name} an admin?` : `Make ${name} a member?`,
+        message: toAdmin
+          ? 'Admins can see and edit every task, manage people and read the audit log.'
+          : 'They’ll lose access to the admin pages but keep all their own tasks.',
+        confirmText: toAdmin ? 'Make admin' : 'Make member',
+        danger: !toAdmin,
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        const updated = await api(`/api/admin/users/${id}/role`, {
+          method: 'PATCH', body: { role: toAdmin ? 'ADMIN' : 'USER' },
+        });
+        paintRole(scope, updated.role);
+        Toast.success(`${updated.username} is now ${updated.role === 'ADMIN' ? 'an admin' : 'a member'}.`);
+      } catch (err) {
+        Toast.error(err.message);
+      } finally {
+        btn.disabled = false;
       }
-
-      // Update button label and data-active
-      btn.textContent      = updated.active ? 'Deactivate' : 'Activate';
-      btn.dataset.active   = String(updated.active);
+      return;
     }
 
-  } catch (err) {
-    Toast.error(err.message || 'Failed to update user status.');
-    // Restore button text
-    btn.textContent = isActive ? 'Deactivate' : 'Activate';
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-/**
- * Change a user's role between USER and ADMIN.
- * Called from the users table's role button.
- *
- * @param {HTMLElement} btn - Button with data-user-id and data-role
- */
-async function changeUserRole(btn) {
-  const userId  = btn.dataset.userId;
-  const curRole = btn.dataset.role;
-  const newRole = curRole === 'ADMIN' ? 'USER' : 'ADMIN';
-
-  const action = curRole === 'ADMIN'
-    ? 'Remove admin privileges from this user?'
-    : 'Grant admin privileges to this user?';
-
-  if (!confirm(action)) return;
-
-  btn.disabled    = true;
-  btn.textContent = 'Updating...';
-
-  try {
-    const response = await apiCall(`/api/admin/users/${userId}/role`, {
-      method: 'PATCH',
-      body: JSON.stringify({ role: newRole }),
+    const active = btn.dataset.active === 'true';
+    const ok = await Confirm.ask({
+      title: active ? `Pause ${name}?` : `Restore ${name}?`,
+      message: active
+        ? 'They won’t be able to sign in until you restore the account. Their tasks stay put.'
+        : 'They’ll be able to sign in again straight away.',
+      confirmText: active ? 'Pause account' : 'Restore account',
+      danger: active,
     });
-    const updated = await parseJson(response);
-
-    Toast.success(`Role changed to ${updated.role}.`);
-
-    // Update role badge and button in-place
-    const row = document.getElementById(`user-row-${userId}`);
-    if (row) {
-      const roleBadge = row.querySelector('.role-badge');
-      if (roleBadge) {
-        roleBadge.className = `role-badge role-badge--${updated.role.toLowerCase()}`;
-        roleBadge.textContent = updated.role;
-      }
-      btn.textContent   = updated.role === 'ADMIN' ? 'Make User' : 'Make Admin';
-      btn.dataset.role  = updated.role;
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      const updated = await api(`/api/admin/users/${id}/toggle-active`, { method: 'PATCH' });
+      paintActive(scope, updated.active);
+      Toast.success(`${updated.username} ${updated.active ? 'restored' : 'paused'}.`);
+    } catch (err) {
+      Toast.error(err.message);
+    } finally {
+      btn.disabled = false;
     }
-
-  } catch (err) {
-    Toast.error(err.message || 'Failed to change user role.');
-    btn.textContent = curRole === 'ADMIN' ? 'Make User' : 'Make Admin';
-  } finally {
-    btn.disabled = false;
-  }
-}
+  });
+})();

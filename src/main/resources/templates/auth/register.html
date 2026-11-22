@@ -1,112 +1,71 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Create your free TaskNova account"/>
-    <title>Create Account | TaskNova</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" th:href="@{/css/main.css}"/>
-    <link rel="stylesheet" th:href="@{/css/auth.css}"/>
-</head>
-<body class="auth-body">
+<head th:replace="~{fragments/head :: head('Create an account')}"></head>
+<body>
+<div class="auth">
+    <section th:replace="~{fragments/poster :: poster(~{::.poster-head}, 'Free to use. Bring your half-remembered to-dos and give them a proper home.')}">
+        <h1 class="poster-head">Start a <em>fresh page.</em></h1>
+    </section>
 
-<div class="auth-container">
+    <main class="auth-form-side">
+        <button class="btn btn--quiet btn--icon auth-theme" type="button" data-theme-toggle aria-label="Toggle dark mode">
+            <svg class="i theme-icon-dark"><use href="/assets/icons.svg#i-moon"/></svg>
+            <svg class="i theme-icon-light"><use href="/assets/icons.svg#i-sun"/></svg>
+        </button>
 
-    <!-- Left branding panel -->
-    <div class="auth-panel auth-panel--brand">
-        <div class="auth-brand">
-            <div class="auth-brand-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M9 11l3 3L22 4"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-            </div>
-            <h1 class="auth-brand-name">TaskNova</h1>
-            <p class="auth-brand-tagline">Join thousands managing tasks smarter.</p>
-        </div>
-        <ul class="auth-features">
-            <li><span class="auth-feature-icon">✦</span><span>Free forever for personal use</span></li>
-            <li><span class="auth-feature-icon">✦</span><span>Tag &amp; prioritize your tasks</span></li>
-            <li><span class="auth-feature-icon">✦</span><span>Track progress with live stats</span></li>
-        </ul>
-    </div>
+        <div class="auth-card reveal-up">
+            <p class="kicker">New account</p>
+            <h1>Join <em>TaskNova</em></h1>
+            <p class="lede">Takes about thirty seconds.</p>
 
-    <!-- Registration form panel -->
-    <div class="auth-panel auth-panel--form">
-        <div class="auth-form-card">
-            <h2 class="auth-form-title">Create account</h2>
-            <p class="auth-form-subtitle">Get started with TaskNova for free</p>
-
-            <!-- Error alert -->
-            <div id="registerError" class="alert alert--error" style="display:none">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-                </svg>
-                <span id="registerErrorMsg">Something went wrong.</span>
+            <div class="alert alert--error" id="registerError" role="alert" hidden>
+                <svg class="i"><use href="/assets/icons.svg#i-alert"/></svg>
+                <span data-message>Something went wrong.</span>
             </div>
 
-            <form id="registerForm" class="auth-form" novalidate>
-
-                <div class="form-group">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" id="username" name="username" class="form-input"
-                           placeholder="e.g. john_doe" autocomplete="username" required
-                           minlength="3" maxlength="50" pattern="^[a-zA-Z0-9_]+$"/>
-                    <span class="form-hint">Letters, numbers and underscores only</span>
-                    <span class="form-error" id="usernameError"></span>
+            <form id="registerForm" novalidate>
+                <div class="field">
+                    <label class="label" for="username">Username</label>
+                    <input class="input" id="username" name="username" autocomplete="username" placeholder="e.g. ada_l"
+                           minlength="3" maxlength="50" pattern="^[a-zA-Z0-9_]+$" required autofocus/>
+                    <span class="help">Letters, numbers and underscores. You can sign in with this too.</span>
+                    <span class="error-text" data-error-for="username"></span>
                 </div>
-
-                <div class="form-group">
-                    <label for="email" class="form-label">Email address</label>
-                    <input type="email" id="email" name="email" class="form-input"
-                           placeholder="you@example.com" autocomplete="email" required/>
-                    <span class="form-error" id="emailError"></span>
+                <div class="field">
+                    <label class="label" for="email">Email</label>
+                    <input class="input" type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" required/>
+                    <span class="error-text" data-error-for="email"></span>
                 </div>
-
-                <div class="form-group">
-                    <label for="password" class="form-label">Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="password" name="password" class="form-input"
-                               placeholder="At least 8 characters" autocomplete="new-password"
-                               required minlength="8"/>
-                        <button type="button" class="input-toggle" id="togglePassword" aria-label="Show password">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
+                <div class="field">
+                    <label class="label" for="password">Password</label>
+                    <div class="input-wrap">
+                        <input class="input" type="password" id="password" name="password" autocomplete="new-password"
+                               placeholder="8+ characters" minlength="8" required/>
+                        <button class="reveal" type="button" data-reveal="password" aria-label="Show password">
+                            <svg class="i i-sm"><use href="/assets/icons.svg#i-eye"/></svg>
                         </button>
                     </div>
-                    <!-- Password strength bar -->
-                    <div class="password-strength">
-                        <div class="strength-bar" id="strengthBar"></div>
-                    </div>
-                    <span class="strength-label" id="strengthLabel"></span>
-                    <span class="form-error" id="passwordError"></span>
+                    <div class="strength" data-strength-for="password" data-score="0"><i></i><i></i><i></i><i></i></div>
+                    <span class="help">Mix upper- and lower-case letters with at least one digit.</span>
+                    <span class="error-text" data-error-for="password"></span>
                 </div>
-
-                <div class="form-group">
-                    <label for="confirmPassword" class="form-label">Confirm password</label>
-                    <input type="password" id="confirmPassword" name="confirmPassword" class="form-input"
-                           placeholder="Repeat your password" required/>
-                    <span class="form-error" id="confirmPasswordError"></span>
+                <div class="field">
+                    <label class="label" for="confirmPassword">Repeat password</label>
+                    <input class="input" type="password" id="confirmPassword" name="confirmPassword" autocomplete="new-password" required/>
+                    <span class="error-text" data-error-for="confirmPassword"></span>
                 </div>
-
-                <button type="submit" class="btn btn--primary btn--full" id="registerBtn">
-                    <span id="registerBtnText">Create Account</span>
-                    <span id="registerSpinner" class="btn-spinner" style="display:none"></span>
+                <button class="btn btn--primary btn--full" type="submit" style="height:46px;margin-top:.4rem">
+                    <span class="spinner"></span><span class="btn-label">Create account</span>
+                    <svg class="i"><use href="/assets/icons.svg#i-arrow-right"/></svg>
                 </button>
             </form>
 
-            <p class="auth-switch">
-                Already have an account?
-                <a th:href="@{/auth/login}" class="auth-link">Sign in</a>
-            </p>
+            <p class="auth-switch">Already have one? <a href="/auth/login">Sign in</a></p>
         </div>
-    </div>
+    </main>
 </div>
-
-<script th:src="@{/js/auth.js}"></script>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/js/main.js"></script>
+<script src="/js/auth.js"></script>
 </body>
 </html>

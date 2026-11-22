@@ -44,3 +44,6 @@ data/
 ### Logs ###
 logs/
 *.log
+
+### Private study material (never commit) ###
+private/

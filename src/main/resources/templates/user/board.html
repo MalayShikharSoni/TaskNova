@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='Board', content=~{::content}, scripts=~{::scripts})}">
+<body>
+<th:block th:fragment="content">
+
+    <header class="page-head">
+        <div>
+            <p class="kicker"><span>Workspace</span><span class="dot"></span><span>Drag cards between columns</span></p>
+            <h1>The <em>board</em></h1>
+            <p class="lede">Every task as an index card. Pick one up and move it along when it changes state.</p>
+        </div>
+        <div class="page-actions">
+            <nav class="view-switch" aria-label="View">
+                <a href="/tasks"><svg class="i i-sm"><use href="/assets/icons.svg#i-list"/></svg> List</a>
+                <a href="/tasks/board" class="is-on"><svg class="i i-sm"><use href="/assets/icons.svg#i-board"/></svg> Board</a>
+            </nav>
+            <button class="btn btn--primary" type="button" data-open-create>
+                <svg class="i"><use href="/assets/icons.svg#i-plus"/></svg> New task
+            </button>
+        </div>
+    </header>
+
+    <div class="board" id="board">
+        <th:block th:each="col : ${ {
+                {'TODO', 'To do', 'Nothing waiting. Suspicious.'},
+                {'IN_PROGRESS', 'In progress', 'Drop a card here when you start on it.'},
+                {'DONE', 'Done', 'Finished work lands here.'}
+            } }"
+            th:with="list=${col[0] == 'TODO' ? todo : (col[0] == 'IN_PROGRESS' ? inProgress : done)}">
+            <section class="col" th:attr="data-status=${col[0]}" th:aria-label="${col[1]}">
+                <header class="col-head">
+                    <h2 th:text="${col[1]}">To do</h2>
+                    <span class="col-count" data-count th:text="${list.size()}">0</span>
+                </header>
+                <div class="col-body" data-dropzone>
+                    <article class="icard" draggable="true" th:each="t : ${list}"
+                             th:attr="data-task-id=${t.id},data-status=${t.status}">
+                        <span class="tape" th:if="${t.overdue}" aria-hidden="true"></span>
+                        <div class="icard-top">
+                            <span class="icard-id" th:text="${'No. ' + t.id}">No. 4</span>
+                            <span th:replace="~{fragments/ui :: prio(${t.priority})}"></span>
+                        </div>
+                        <a class="icard-title" th:href="@{/tasks/{id}(id=${t.id})}" th:text="${t.title}" draggable="false">Title</a>
+                        <div class="icard-meta">
+                            <span th:replace="~{fragments/ui :: due(${t})}"></span>
+                            <span class="assigned-note" th:if="${t.assigneeId != null and t.assigneeId == user.id and t.ownerId != user.id}"
+                                  th:text="${'↘ ' + t.ownerUsername}">from admin</span>
+                        </div>
+                        <span th:replace="~{fragments/ui :: tags(${t.tagDetails})}"></span>
+                    </article>
+                    <p class="col-empty" th:if="${list.isEmpty()}" th:text="${col[2]}">Empty</p>
+                </div>
+                <button class="col-add" type="button" data-open-create th:if="${col[0] == 'TODO'}">
+                    <svg class="i i-sm"><use href="/assets/icons.svg#i-plus"/></svg> Add a card
+                </button>
+            </section>
+        </th:block>
+    </div>
+
+    <dialog th:replace="~{fragments/ui :: createModal}"></dialog>
+</th:block>
+
+<th:block th:fragment="scripts">
+    <script src="/js/tasks.js"></script>
+</th:block>
+</body>
+</html>

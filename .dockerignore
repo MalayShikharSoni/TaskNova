@@ -29,3 +29,6 @@ src/test/
 
 # Scratch files
 SmartLearning.kt
+
+# Docs and screenshots aren't needed in the image
+docs/

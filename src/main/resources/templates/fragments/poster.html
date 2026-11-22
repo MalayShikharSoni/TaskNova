@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* Left-hand "poster" shared by login and register. Params: headline fragment + copy text. */-->
+<section class="poster" th:fragment="poster(headline, copy)">
+    <a href="/" class="brand" style="padding:0">
+        <span class="brand-mark"><svg class="i"><use href="/assets/icons.svg#i-nova"/></svg></span>
+        <span class="brand-name">Task<em>Nova</em></span>
+    </a>
+
+    <div class="poster-cards" aria-hidden="true">
+        <article class="icard">
+            <div class="icard-top"><span class="icard-id">No. 12</span>
+                <span class="prio prio--high"><span class="prio-bars"><i></i><i></i><i></i></span><span>high</span></span></div>
+            <span class="icard-title">Ship the onboarding flow</span>
+            <div class="icard-meta"><span class="pill pill--in-progress">In Progress</span><span class="due">Fri</span></div>
+        </article>
+        <article class="icard">
+            <span class="tape"></span>
+            <div class="icard-top"><span class="icard-id">No. 7</span>
+                <span class="prio prio--medium"><span class="prio-bars"><i></i><i></i><i></i></span><span>medium</span></span></div>
+            <span class="icard-title">Call the printer about proofs</span>
+            <div class="icard-meta"><span class="pill pill--todo">To Do</span><span class="due">Today</span></div>
+        </article>
+        <article class="icard">
+            <div class="icard-top"><span class="icard-id">No. 3</span>
+                <span class="prio prio--low"><span class="prio-bars"><i></i><i></i><i></i></span><span>low</span></span></div>
+            <span class="icard-title" style="text-decoration:line-through;text-decoration-color:var(--accent)">Water the office fern</span>
+            <div class="icard-meta"><span class="pill pill--done">Done</span></div>
+        </article>
+    </div>
+
+    <svg class="poster-sparkle" style="top:46%;left:62%;width:22px;height:22px" aria-hidden="true"><use href="/assets/icons.svg#i-nova"/></svg>
+    <svg class="poster-sparkle" style="top:18%;left:38%;width:12px;height:12px;animation-delay:-1.2s" aria-hidden="true"><use href="/assets/icons.svg#i-nova"/></svg>
+
+    <h1 class="poster-head" th:replace="${headline}">Make the day <em>legible.</em></h1>
+    <p class="poster-copy" th:text="${copy}">Copy</p>
+
+    <div class="poster-foot">
+        <span>Cobalt · Pink · Spring Boot</span>
+        <span>Est. 2026</span>
+    </div>
+</section>
+</body>
+</html>

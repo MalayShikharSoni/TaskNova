@@ -11,6 +11,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.stream.Collectors;
 
@@ -121,10 +122,12 @@ public class JwtTokenProvider {
             log.warn("Unsupported JWT: {}", e.getMessage());
         } catch (MalformedJwtException e) {
             log.warn("Malformed JWT: {}", e.getMessage());
-        } catch (SecurityException e) {
+        } catch (io.jsonwebtoken.security.SecurityException e) {
             log.warn("Invalid JWT signature: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
             log.warn("Empty JWT claims: {}", e.getMessage());
+        } catch (JwtException e) {
+            log.warn("Invalid JWT: {}", e.getMessage());
         }
         return false;
     }
@@ -141,8 +144,32 @@ public class JwtTokenProvider {
                 .getPayload();
     }
 
+    private volatile SecretKey signingKey;
+
+    /**
+     * Builds the HMAC key once. The secret may be Base64 (as Render's
+     * {@code generateValue} produces) or any plain string of at least 32 bytes.
+     */
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtConfig.getSecret());
-        return Keys.hmacShaKeyFor(keyBytes);
+        SecretKey key = signingKey;
+        if (key == null) {
+            String secret = jwtConfig.getSecret();
+            if (secret == null || secret.isBlank()) {
+                throw new IllegalStateException("JWT secret is not configured (set JWT_SECRET).");
+            }
+            byte[] keyBytes;
+            try {
+                keyBytes = Decoders.BASE64.decode(secret.trim());
+            } catch (RuntimeException notBase64) {
+                keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+            }
+            if (keyBytes.length < 32) {
+                throw new IllegalStateException(
+                        "JWT secret is too short: HS256 needs at least 256 bits (32 bytes).");
+            }
+            key = Keys.hmacShaKeyFor(keyBytes);
+            signingKey = key;
+        }
+        return key;
     }
 }

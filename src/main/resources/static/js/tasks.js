@@ -1,248 +1,358 @@
-/* ============================================================
+/* ==========================================================================
    TaskNova — tasks.js
-   Handles task CRUD operations via REST API for both the
-   dashboard and task list/detail pages.
-   ============================================================ */
+   Create dialog, quick add, list rows (complete / delete), filters,
+   board drag-and-drop, and the task detail editor.
+   ========================================================================== */
+(function () {
+  'use strict';
+  const { $, $$, api, Toast, Confirm, Form, STATUS, burst } = window.TN;
 
-document.addEventListener('DOMContentLoaded', () => {
+  /* ── Small helpers ───────────────────────────────────────────────────── */
+  const selectedTags = (root) =>
+    $$('.tag-toggle[aria-pressed="true"]', root).map((b) => b.dataset.tag);
 
-  // ── Load tags for picker ──────────────────────────────
-  loadTagsForPicker();
-
-  // ── Create Task Modal ─────────────────────────────────
-  const openBtns  = [
-    document.getElementById('openCreateTaskModal'),
-    document.getElementById('openCreateTaskModal2'),
-  ].filter(Boolean);
-  const closeBtn   = document.getElementById('closeCreateTaskModal');
-  const cancelBtn  = document.getElementById('cancelCreateTask');
-  const modal      = document.getElementById('createTaskModal');
-  const submitBtn  = document.getElementById('submitCreateTask');
-
-  openBtns.forEach(btn => btn?.addEventListener('click', () => openModal(modal)));
-  closeBtn?.addEventListener('click',  () => closeModal(modal));
-  cancelBtn?.addEventListener('click', () => closeModal(modal));
-  modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
-
-  submitBtn?.addEventListener('click', createTask);
-
-  // ── Delete Task (task list page) ─────────────────────
-  const deleteModal    = document.getElementById('deleteModal');
-  const closeDeleteBtn = document.getElementById('closeDeleteModal');
-  const cancelDelBtn   = document.getElementById('cancelDelete');
-  const confirmDelBtn  = document.getElementById('confirmDeleteBtn');
-
-  closeDeleteBtn?.addEventListener('click',  () => closeModal(deleteModal));
-  cancelDelBtn?.addEventListener('click',   () => closeModal(deleteModal));
-  deleteModal?.addEventListener('click', (e) => { if (e.target === deleteModal) closeModal(deleteModal); });
-
-  confirmDelBtn?.addEventListener('click', async function() {
-    const taskId = this.dataset.taskId || document.getElementById('currentTaskId')?.value;
-    if (!taskId) return;
-    await deleteTask(taskId, this);
-  });
-
-  // ── Task Detail Page: Save Changes ────────────────────
-  const saveBtn = document.getElementById('saveTaskBtn');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', saveTaskDetail);
+  function paintPill(pill, status) {
+    if (!pill || !STATUS[status]) return;
+    pill.className = `pill ${STATUS[status].cls}`;
+    pill.textContent = STATUS[status].label;
   }
 
-  // ── Task Detail Page: Quick Status Buttons ────────────
-  document.querySelectorAll('.quick-status-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-      const taskId = document.getElementById('currentTaskId')?.value;
-      const status = this.dataset.status;
-      if (!taskId || !status) return;
+  // Tag toggles anywhere on the page
+  document.addEventListener('click', (e) => {
+    const toggle = e.target.closest('.tag-toggle');
+    if (!toggle) return;
+    toggle.setAttribute('aria-pressed', String(toggle.getAttribute('aria-pressed') !== 'true'));
+    toggle.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 
+  /* ── Create dialog ───────────────────────────────────────────────────── */
+  function initCreateDialog() {
+    const dialog = $('#createTaskDialog');
+    if (!dialog) return;
+    const form = $('#createTaskForm', dialog);
+    const submit = $('button[type="submit"]', form);
+
+    const open = () => {
+      form.reset();
+      Form.clearErrors(form);
+      $$('.tag-toggle', form).forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      dialog.showModal();
+      setTimeout(() => form.elements.title.focus(), 30);
+    };
+
+    $$('[data-open-create]').forEach((b) => b.addEventListener('click', open));
+    $$('[data-close]', dialog).forEach((b) => b.addEventListener('click', () => dialog.close()));
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });   // click on backdrop
+
+    if (location.hash === '#new') { history.replaceState(null, '', location.pathname); open(); }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Form.clearErrors(form);
+      const title = form.elements.title.value.trim();
+      if (!title) { Form.showErrors(form, { title: 'Give it a title, even a rough one.' }); return; }
+
+      Form.loading(submit, true);
       try {
-        await parseJson(await apiCall(`/api/tasks/${taskId}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ status }),
-        }));
-        Toast.success('Status updated!');
-        // Update the status select
-        const sel = document.getElementById('editStatus');
-        if (sel) sel.value = status;
-        // Update the badge in header
-        refreshStatusBadge(status);
+        await api('/api/tasks', {
+          method: 'POST',
+          body: {
+            title,
+            description: form.elements.description.value.trim() || null,
+            dueDate: form.elements.dueDate.value || null,
+            priority: form.elements.priority.value,
+            tagNames: selectedTags(form),
+          },
+        });
+        Toast.flash('Task added. Nice.');
+        location.reload();
+      } catch (err) {
+        if (!Form.showErrors(form, err.fieldErrors)) Toast.error(err.message);
+        Form.loading(submit, false);
+      }
+    });
+  }
+
+  /* ── Quick add (dashboard) ───────────────────────────────────────────── */
+  function initQuickAdd() {
+    const form = $('#quickAdd');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.elements.title;
+      const title = input.value.trim();
+      if (!title) { input.focus(); return; }
+      input.disabled = true;
+      try {
+        await api('/api/tasks', { method: 'POST', body: { title } });
+        Toast.flash(`Added “${title}”.`);
+        location.reload();
+      } catch (err) {
+        Toast.error(err.message);
+        input.disabled = false;
+        input.focus();
+      }
+    });
+  }
+
+  /* ── Task rows: complete + delete ────────────────────────────────────── */
+  function initRows() {
+    document.addEventListener('click', async (e) => {
+      const check = e.target.closest('[data-action="toggle-done"]');
+      const del = e.target.closest('.row [data-action="delete"]');
+      if (!check && !del) return;
+      const row = (check || del).closest('.row');
+      const id = row.dataset.taskId;
+
+      if (check) {
+        const wasDone = check.getAttribute('aria-checked') === 'true';
+        const next = wasDone ? 'TODO' : 'DONE';
+        const prev = row.dataset.status;
+        // Optimistic: draw the tick (and pop the confetti) straight away
+        check.setAttribute('aria-checked', String(!wasDone));
+        if (!wasDone) burst(check);
+        row.classList.toggle('is-done', !wasDone);
+        paintPill($('.pill', row), next);
+        check.disabled = true;
+        try {
+          await api(`/api/tasks/${id}`, { method: 'PATCH', body: { status: next } });
+          row.dataset.status = next;
+          check.setAttribute('aria-label', wasDone ? 'Mark as done' : 'Mark as not done');
+          if (!wasDone) Toast.success('Crossed off. ✦');
+        } catch (err) {
+          check.setAttribute('aria-checked', String(wasDone));
+          row.classList.toggle('is-done', wasDone);
+          paintPill($('.pill', row), prev);
+          Toast.error(err.message);
+        } finally {
+          check.disabled = false;
+        }
+        return;
+      }
+
+      const ok = await Confirm.ask({
+        title: 'Delete this task?',
+        message: `“${row.dataset.title}” will be gone for good.`,
+        confirmText: 'Delete',
+      });
+      if (!ok) return;
+      try {
+        await api(`/api/tasks/${id}`, { method: 'DELETE' });
+        row.classList.add('is-leaving');
+        row.addEventListener('animationend', () => {
+          const list = row.parentElement;
+          row.remove();
+          if (list && !list.children.length) location.reload();
+        }, { once: true });
+        Toast.success('Task deleted.');
       } catch (err) {
         Toast.error(err.message);
       }
     });
-  });
+  }
 
-  // ── Task Detail Page: Delete ──────────────────────────
-  const deleteTaskBtn = document.getElementById('deleteTaskBtn');
-  if (deleteTaskBtn) {
-    deleteTaskBtn.addEventListener('click', function() {
-      const taskId    = this.dataset.taskId;
-      const taskTitle = this.dataset.taskTitle;
-      document.getElementById('deleteModal').style.display = 'flex';
-      const confirmBtn = document.getElementById('confirmDeleteBtn');
-      if (confirmBtn) confirmBtn.dataset.taskId = taskId;
+  /* ── Filters ─────────────────────────────────────────────────────────── */
+  function initFilters() {
+    const form = $('#filterForm');
+    if (!form) return;
+    // Keep URLs tidy: don't send empty parameters
+    form.addEventListener('submit', () => {
+      Array.from(form.elements).forEach((el) => { if (el.name && !el.value) el.disabled = true; });
+    });
+    $$('[data-autosubmit]', form).forEach((el) => el.addEventListener('change', () => form.requestSubmit()));
+    $$('[data-status-chip]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        form.elements.status.value = chip.dataset.statusChip;
+        form.requestSubmit();
+      });
     });
   }
 
-  // ── Functions ─────────────────────────────────────────
+  /* ── Board drag & drop ───────────────────────────────────────────────── */
+  function initBoard() {
+    const board = $('#board');
+    if (!board) return;
+    let dragged = null;
 
-  async function createTask() {
-    const title       = document.getElementById('taskTitle')?.value.trim();
-    const description = document.getElementById('taskDescription')?.value.trim();
-    const dueDate     = document.getElementById('taskDueDate')?.value || null;
-    const priority    = document.getElementById('taskPriority')?.value || 'MEDIUM';
-    const tags        = getSelectedTags();
-
-    const titleErr = document.getElementById('taskTitleError');
-    if (!title) {
-      if (titleErr) { titleErr.textContent = 'Title is required.'; titleErr.style.display = 'block'; }
-      return;
-    }
-    if (titleErr) titleErr.style.display = 'none';
-
-    const btn     = document.getElementById('submitCreateTask');
-    const btnText = document.getElementById('createTaskBtnText');
-    const spinner = document.getElementById('createTaskSpinner');
-    if (btn) btn.disabled = true;
-    if (btnText) btnText.style.display = 'none';
-    if (spinner) spinner.style.display = 'inline-block';
-
-    try {
-      await parseJson(await apiCall('/api/tasks', {
-        method: 'POST',
-        body: JSON.stringify({ title, description, dueDate, priority, tagNames: tags }),
-      }));
-      Toast.success('Task created!');
-      closeModal(document.getElementById('createTaskModal'));
-      setTimeout(() => location.reload(), 800);
-    } catch (err) {
-      Toast.error(err.message);
-    } finally {
-      if (btn) btn.disabled = false;
-      if (btnText) btnText.style.display = 'inline';
-      if (spinner) spinner.style.display = 'none';
-    }
-  }
-
-  async function saveTaskDetail() {
-    const taskId      = document.getElementById('currentTaskId')?.value;
-    const title       = document.getElementById('editTitle')?.value.trim();
-    const description = document.getElementById('editDescription')?.value.trim();
-    const dueDate     = document.getElementById('editDueDate')?.value || null;
-    const priority    = document.getElementById('editPriority')?.value;
-    const status      = document.getElementById('editStatus')?.value;
-    const tags        = getSelectedTags();
-
-    if (!title) { Toast.warning('Title cannot be empty.'); return; }
-    if (!taskId) return;
-
-    const btn = document.getElementById('saveTaskBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-
-    try {
-      await parseJson(await apiCall(`/api/tasks/${taskId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ title, description, dueDate, priority, status, tagNames: tags }),
-      }));
-      Toast.success('Changes saved!');
-    } catch (err) {
-      Toast.error(err.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
-    }
-  }
-
-  async function deleteTask(taskId, confirmBtn) {
-    if (confirmBtn) confirmBtn.disabled = true;
-    try {
-      await parseJson(await apiCall(`/api/tasks/${taskId}`, { method: 'DELETE' }));
-      Toast.success('Task deleted.');
-      closeModal(document.getElementById('deleteModal'));
-      // Remove row from table or redirect
-      const row = document.getElementById(`task-row-${taskId}`);
-      if (row) {
-        row.style.opacity = '0';
-        row.style.transition = 'opacity 0.3s';
-        setTimeout(() => row.remove(), 300);
-      } else {
-        // On detail page — redirect back to tasks
-        setTimeout(() => window.location.href = '/tasks', 700);
+    const refreshColumn = (col) => {
+      const body = $('[data-dropzone]', col);
+      const cards = $$('.icard', body);
+      $('[data-count]', col).textContent = cards.length;
+      const empty = $('.col-empty', body);
+      if (empty) empty.hidden = cards.length > 0;
+      else if (!cards.length) {
+        const p = document.createElement('p');
+        p.className = 'col-empty';
+        p.textContent = 'Drop a card here.';
+        body.appendChild(p);
       }
-    } catch (err) {
-      Toast.error(err.message);
-    } finally {
-      if (confirmBtn) confirmBtn.disabled = false;
-    }
-  }
+    };
 
-  // ── Tag picker ────────────────────────────────────────
+    board.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.icard');
+      if (!card) return;
+      dragged = card;
+      card.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.taskId);
+    });
+    board.addEventListener('dragend', () => {
+      if (dragged) dragged.classList.remove('is-dragging');
+      $$('.col.is-over', board).forEach((c) => c.classList.remove('is-over'));
+      dragged = null;
+    });
 
-  async function loadTagsForPicker() {
-    const pickers = document.querySelectorAll('.tag-picker');
-    if (!pickers.length) return;
-
-    try {
-      // Fetch available tags from a static list (pre-seeded)
-      // or load from API if endpoint exists
-      const tags = ['bug','feature','urgent','backend','frontend','review','docs','testing'];
-
-      pickers.forEach(picker => {
-        const preselected = (picker.dataset.selected || '').split(',').filter(Boolean);
-
-        tags.forEach(tag => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'tag-option' + (preselected.includes(tag) ? ' selected' : '');
-          btn.textContent = '#' + tag;
-          btn.dataset.tag = tag;
-          btn.addEventListener('click', () => btn.classList.toggle('selected'));
-          picker.appendChild(btn);
-        });
+    $$('.col', board).forEach((col) => {
+      col.addEventListener('dragover', (e) => {
+        if (!dragged) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        col.classList.add('is-over');
       });
-    } catch (err) {
-      console.warn('Could not load tags:', err);
+      col.addEventListener('dragleave', (e) => {
+        if (!col.contains(e.relatedTarget)) col.classList.remove('is-over');
+      });
+      col.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        col.classList.remove('is-over');
+        const card = dragged;
+        if (!card) return;
+        const from = card.closest('.col');
+        const status = col.dataset.status;
+        if (from === col) return;
+
+        const body = $('[data-dropzone]', col);
+        body.insertBefore(card, body.firstChild);
+        refreshColumn(from); refreshColumn(col);
+        card.dataset.status = status;
+        if (status === 'DONE') burst(card);
+        try {
+          await api(`/api/tasks/${card.dataset.taskId}`, { method: 'PATCH', body: { status } });
+          Toast.success(`Moved to ${STATUS[status].label}.`);
+        } catch (err) {
+          const back = $('[data-dropzone]', from);
+          back.insertBefore(card, back.firstChild);
+          refreshColumn(from); refreshColumn(col);
+          Toast.error(err.message);
+        }
+      });
+    });
+  }
+
+  /* ── Task detail editor ──────────────────────────────────────────────── */
+  function initDetail() {
+    const root = $('#taskDetail');
+    const form = $('#taskForm');
+    if (!root || !form) return;
+    const id = root.dataset.taskId;
+    const saveBtn = $('#saveBtn');
+    const saveState = $('#saveState');
+    const title = form.elements.title;
+    let dirty = false;
+
+    const setDirty = (d) => {
+      dirty = d;
+      saveState.textContent = d ? 'Unsaved changes' : 'All changes saved';
+      saveState.classList.toggle('is-dirty', d);
+    };
+
+    // Auto-growing title that behaves like a single line
+    const grow = () => { title.style.height = 'auto'; title.style.height = title.scrollHeight + 'px'; };
+    grow();
+    title.addEventListener('input', grow);
+    title.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); } });
+
+    form.addEventListener('input', () => setDirty(true));
+    form.addEventListener('change', () => setDirty(true));
+    window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); form.requestSubmit(); }
+    });
+
+    const currentStatus = () => {
+      const on = $('#statusControl [aria-pressed="true"]');
+      return on ? on.dataset.status : undefined;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Form.clearErrors(form);
+      const t = title.value.trim();
+      if (!t) { Form.showErrors(form, { title: 'A task needs a title.' }); return; }
+
+      const body = {
+        title: t,
+        description: form.elements.description.value.trim() || null,
+        dueDate: form.elements.dueDate.value || null,
+        priority: form.elements.priority.value,
+        status: currentStatus(),
+        tagNames: selectedTags(form),
+      };
+      const assignee = form.elements.assigneeId;
+      if (assignee) body.assigneeId = assignee.value ? Number(assignee.value) : null;
+
+      Form.loading(saveBtn, true);
+      try {
+        const saved = await api(`/api/tasks/${id}`, { method: 'PUT', body });
+        setDirty(false);
+        saveState.textContent = 'Saved just now';
+        document.title = `${saved.title} · TaskNova`;
+        Toast.success('Saved.');
+        if (assignee) { Toast.flash('Saved.'); location.reload(); }
+      } catch (err) {
+        if (!Form.showErrors(form, err.fieldErrors)) Toast.error(err.message);
+      } finally {
+        Form.loading(saveBtn, false);
+      }
+    });
+
+    // Status segmented control applies immediately
+    $$('#statusControl button').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (btn.getAttribute('aria-pressed') === 'true') return;
+        const prev = currentStatus();
+        const status = btn.dataset.status;
+        $$('#statusControl button').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        paintPill($('.spec .pill'), status);
+        if (status === 'DONE') burst(btn);
+        try {
+          await api(`/api/tasks/${id}`, { method: 'PATCH', body: { status } });
+          Toast.success(status === 'DONE' ? 'Done and dusted. ✦' : `Moved to ${STATUS[status].label}.`);
+        } catch (err) {
+          $$('#statusControl button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.status === prev)));
+          paintPill($('.spec .pill'), prev);
+          Toast.error(err.message);
+        }
+      });
+    });
+
+    const del = $('#deleteTaskBtn');
+    if (del) {
+      del.addEventListener('click', async () => {
+        const ok = await Confirm.ask({
+          title: 'Delete this task?',
+          message: `“${title.value.trim()}” will be removed for everyone. This can’t be undone.`,
+          confirmText: 'Delete task',
+        });
+        if (!ok) return;
+        try {
+          await api(`/api/tasks/${id}`, { method: 'DELETE' });
+          dirty = false;
+          Toast.flash('Task deleted.');
+          location.href = '/tasks';
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      });
     }
   }
 
-  function getSelectedTags() {
-    const picker = document.querySelector('.tag-picker');
-    if (!picker) return [];
-    return Array.from(picker.querySelectorAll('.tag-option.selected'))
-                .map(el => el.dataset.tag);
-  }
-
-  // ── Modal helpers ─────────────────────────────────────
-  function openModal(modal) {
-    if (!modal) return;
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal(modal) {
-    if (!modal) return;
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-  }
-
-  // ── Status badge refresh on detail page ──────────────
-  function refreshStatusBadge(status) {
-    const badge = document.querySelector('.task-detail-meta .status-badge');
-    if (!badge) return;
-    badge.className = 'status-badge status-badge--' + status.toLowerCase().replace('_', '-');
-    const labels = { TODO: 'To Do', IN_PROGRESS: 'In Progress', DONE: 'Done' };
-    badge.textContent = labels[status] || status;
-  }
-});
-
-// ── Global confirmDelete function (called from inline onclick) ──
-function confirmDelete(btn) {
-  const taskId    = btn.dataset.taskId;
-  const taskTitle = btn.dataset.taskTitle;
-  const modal    = document.getElementById('deleteModal');
-  const titleEl  = document.getElementById('deleteTaskTitle');
-  const confirmBtn = document.getElementById('confirmDeleteBtn');
-
-  if (titleEl)    titleEl.textContent = taskTitle || 'this task';
-  if (confirmBtn) confirmBtn.dataset.taskId = taskId;
-  if (modal)      modal.style.display = 'flex';
-}
+  document.addEventListener('DOMContentLoaded', () => {
+    initCreateDialog();
+    initQuickAdd();
+    initRows();
+    initFilters();
+    initBoard();
+    initDetail();
+  });
+})();

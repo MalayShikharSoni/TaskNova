@@ -1,104 +1,95 @@
 <!DOCTYPE html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{layout/base :: head(pageTitle='User Management')}"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='People', content=~{::content}, scripts=~{::scripts})}">
 <body>
-<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
-<th:block th:fragment="mainContent">
+<th:block th:fragment="content">
 
-<div class="page-header">
-    <div>
-        <h1 class="page-title">User Management</h1>
-        <p class="page-subtitle">View, activate, deactivate and change user roles</p>
-    </div>
-</div>
+    <header class="page-head">
+        <div>
+            <p class="kicker"><span>Admin</span><span class="dot"></span>
+                <span th:text="${users.totalElements + (users.totalElements == 1 ? ' account' : ' accounts')}">2 accounts</span></p>
+            <h1>The <em>people</em></h1>
+            <p class="lede">Promote, demote, pause or restore accounts. You can't change your own role or lock yourself out.</p>
+        </div>
+    </header>
 
-<!-- Search bar -->
-<form th:action="@{/admin/users}" method="get" class="search-bar">
-    <div class="search-input-wrapper">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" name="search" class="form-input search-input"
-               th:value="${search}" placeholder="Search by name or email..."/>
-    </div>
-    <button type="submit" class="btn btn--primary">Search</button>
-    <a th:if="${search != null}" th:href="@{/admin/users}" class="btn btn--ghost">Clear</a>
-</form>
+    <form class="toolbar" action="/admin/users" method="get" role="search">
+        <div class="search">
+            <svg class="i"><use href="/assets/icons.svg#i-search"/></svg>
+            <input class="input" type="search" name="search" id="searchInput" th:value="${search}" placeholder="Search by name or email…" aria-label="Search people"/>
+        </div>
+        <button class="btn btn--ink" type="submit">Search</button>
+        <a th:if="${search != ''}" class="btn btn--quiet btn--sm" href="/admin/users">Clear</a>
+    </form>
 
-<!-- User table -->
-<div class="card" th:if="${users.hasContent()}">
-    <div class="table-wrapper">
-        <table class="data-table" id="userTable">
-            <thead>
+    <section class="card" th:if="${users.hasContent()}">
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                 <tr>
-                    <th>User</th>
-                    <th>Email</th>
+                    <th>Person</th>
                     <th>Role</th>
                     <th>Status</th>
                     <th>Joined</th>
-                    <th>Total Tasks</th>
-                    <th>Actions</th>
+                    <th class="num">Tasks</th>
+                    <th style="text-align:right">Actions</th>
                 </tr>
-            </thead>
-            <tbody>
-                <tr th:each="u : ${users.content}" th:id="'user-row-' + ${u.id}">
+                </thead>
+                <tbody>
+                <tr th:each="u : ${users.content}" th:id="'user-' + ${u.id}"
+                    th:with="self=${currentUser != null and currentUser.id == u.id}">
                     <td>
-                        <div class="user-cell">
-                            <div class="user-avatar-sm" th:text="${#strings.substring(u.username, 0, 1).toUpperCase()}">U</div>
-                            <span th:text="${u.username}">username</span>
+                        <a class="cell-user" th:href="@{/admin/users/{id}(id=${u.id})}">
+                            <span class="avatar" th:attr="data-hue=${u.id % 6}" th:text="${#strings.toUpperCase(#strings.substring(u.username, 0, 1))}">U</span>
+                            <span>
+                                <strong><span class="cell-title" th:text="${u.username}">user</span><span class="you-badge" th:if="${self}">you</span></strong>
+                                <small th:text="${u.email}">user@example.com</small>
+                            </span>
+                        </a>
+                    </td>
+                    <td><span class="pill" data-role-pill th:classappend="${u.role.name() == 'ADMIN'} ? 'pill--admin' : 'pill--user'"
+                              th:text="${u.role.name() == 'ADMIN' ? 'Admin' : 'Member'}">Member</span></td>
+                    <td><span class="pill" data-active-pill th:classappend="${u.active} ? 'pill--active' : 'pill--inactive'"
+                              th:text="${u.active ? 'Active' : 'Paused'}">Active</span></td>
+                    <td class="mono muted" th:text="${u.createdAt != null ? #temporals.format(u.createdAt, 'd MMM yyyy') : '—'}">—</td>
+                    <td class="num" th:text="${u.totalTasks}">0</td>
+                    <td>
+                        <div class="actions" th:unless="${self}">
+                            <button class="btn btn--ghost btn--sm" type="button" data-action="role"
+                                    th:attr="data-user-id=${u.id},data-role=${u.role},data-name=${u.username}"
+                                    th:text="${u.role.name() == 'ADMIN' ? 'Make member' : 'Make admin'}">Make admin</button>
+                            <button class="btn btn--ghost btn--sm" type="button" data-action="toggle"
+                                    th:attr="data-user-id=${u.id},data-active=${u.active},data-name=${u.username}"
+                                    th:hidden="${u.role.name() == 'ADMIN'}"
+                                    th:text="${u.active ? 'Pause' : 'Restore'}">Pause</button>
                         </div>
-                    </td>
-                    <td th:text="${u.email}">email</td>
-                    <td>
-                        <span class="role-badge"
-                              th:classappend="${u.role.name() == 'ADMIN'} ? 'role-badge--admin' : 'role-badge--user'"
-                              th:text="${u.role}">USER</span>
-                    </td>
-                    <td>
-                        <span class="status-indicator"
-                              th:classappend="${u.active} ? 'status-indicator--active' : 'status-indicator--inactive'"
-                              th:text="${u.active ? 'Active' : 'Inactive'}">Active</span>
-                    </td>
-                    <td th:text="${u.createdAt != null ? #temporals.format(u.createdAt, 'MMM d, yyyy') : '—'}">—</td>
-                    <td th:text="${u.totalTasks}">0</td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="btn btn--ghost btn--sm"
-                                    th:data-user-id="${u.id}"
-                                    th:data-active="${u.active}"
-                                    onclick="toggleUserActive(this)"
-                                    th:text="${u.active ? 'Deactivate' : 'Activate'}">Toggle</button>
-                            <button class="btn btn--ghost btn--sm"
-                                    th:data-user-id="${u.id}"
-                                    th:data-role="${u.role}"
-                                    onclick="changeUserRole(this)"
-                                    th:text="${u.role.name() == 'ADMIN' ? 'Make User' : 'Make Admin'}">Role</button>
-                        </div>
+                        <div class="actions" th:if="${self}"><span class="muted mono" style="font-size:.75rem">That's you</span></div>
                     </td>
                 </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
+                </tbody>
+            </table>
+        </div>
+    </section>
 
-<div class="empty-state" th:if="${!users.hasContent()}">
-    <p class="empty-title">No users found</p>
-    <p class="empty-subtitle" th:text="${search != null ? 'No results for: ' + search : 'No users in the system yet'}"></p>
-</div>
+    <section class="card" th:unless="${users.hasContent()}">
+        <div class="empty">
+            <svg th:replace="~{fragments/ui :: artMagnifier}"></svg>
+            <h3>No one by that name</h3>
+            <p th:text="${'Nothing matched “' + search + '”.'}">Nothing matched.</p>
+        </div>
+    </section>
 
-<!-- Pagination -->
-<div class="pagination" th:if="${users.totalPages > 1}">
-    <a th:href="@{/admin/users(page=${currentPage - 1}, search=${search})}"
-       class="page-btn" th:classappend="${currentPage == 0} ? 'page-btn--disabled' : ''">← Prev</a>
-    <span class="page-info" th:text="'Page ' + ${currentPage + 1} + ' of ' + ${users.totalPages}">Page 1</span>
-    <a th:href="@{/admin/users(page=${currentPage + 1}, search=${search})}"
-       class="page-btn" th:classappend="${currentPage + 1 == users.totalPages} ? 'page-btn--disabled' : ''">Next →</a>
-</div>
-
+    <nav class="pager" th:if="${users.totalPages > 1}" aria-label="Pagination">
+        <a class="btn btn--ghost btn--sm" th:href="@{/admin/users(page=${currentPage - 1}, search=${search})}" th:attr="aria-disabled=${users.first}">
+            <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-left"/></svg> Previous</a>
+        <span class="mono" th:text="${'Page ' + (currentPage + 1) + ' of ' + users.totalPages}">Page 1</span>
+        <a class="btn btn--ghost btn--sm" th:href="@{/admin/users(page=${currentPage + 1}, search=${search})}" th:attr="aria-disabled=${users.last}">
+            Next <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-right"/></svg></a>
+    </nav>
 </th:block>
-</div>
-<script th:src="@{/js/admin.js}"></script>
+
+<th:block th:fragment="scripts">
+    <script src="/js/admin.js"></script>
+</th:block>
 </body>
 </html>

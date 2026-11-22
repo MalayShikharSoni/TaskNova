@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='Account', content=~{::content}, scripts=~{::scripts})}">
+<body>
+<th:block th:fragment="content">
+
+    <header class="page-head">
+        <div>
+            <p class="kicker"><span>Account</span><span class="dot"></span><span th:text="${user.email}">demo@tasknova.com</span></p>
+            <h1>Your <em>details</em></h1>
+            <p class="lede">Change how you appear and how you sign in. Your email is your permanent ID here.</p>
+        </div>
+    </header>
+
+    <section class="card profile-hero">
+        <span class="avatar avatar--lg" th:attr="data-hue=${user.id % 6}" data-avatar
+              th:text="${#strings.toUpperCase(#strings.substring(user.username, 0, 1))}">D</span>
+        <div>
+            <h2 data-username th:text="${user.username}">demo_user</h2>
+            <p class="muted" style="margin-top:.25rem">
+                <span th:text="${user.role.name() == 'ADMIN' ? 'Administrator' : 'Member'}">Member</span>
+                · <span th:text="${user.totalTasks + ' tasks owned'}">5 tasks owned</span>
+                <th:block th:if="${user.createdAt != null}">
+                    · joined <span th:text="${#temporals.format(user.createdAt, 'MMMM yyyy')}">Nov 2026</span>
+                </th:block>
+            </p>
+        </div>
+    </section>
+
+    <div class="profile-grid">
+        <form class="card" id="usernameForm" novalidate>
+            <div class="card-head">
+                <div><p class="kicker">Display name</p><h3>Username</h3></div>
+                <svg class="i i-lg muted"><use href="/assets/icons.svg#i-user"/></svg>
+            </div>
+            <div class="card-pad">
+                <div class="field">
+                    <label class="label" for="pUsername">Username</label>
+                    <input class="input" id="pUsername" name="username" th:value="${user.username}"
+                           minlength="3" maxlength="50" pattern="^[a-zA-Z0-9_]+$" autocomplete="username" required/>
+                    <span class="help">Letters, numbers and underscores. You can sign in with it too.</span>
+                    <span class="error-text" data-error-for="username"></span>
+                </div>
+                <button class="btn btn--ink" type="submit"><span class="spinner"></span><span class="btn-label">Save username</span></button>
+            </div>
+        </form>
+
+        <form class="card" id="passwordForm" novalidate>
+            <div class="card-head">
+                <div><p class="kicker">Security</p><h3>Password</h3></div>
+                <svg class="i i-lg muted"><use href="/assets/icons.svg#i-key"/></svg>
+            </div>
+            <div class="card-pad">
+                <input type="text" name="username" th:value="${user.email}" autocomplete="username" hidden aria-hidden="true"/>
+                <div class="field">
+                    <label class="label" for="pCurrent">Current password</label>
+                    <input class="input" type="password" id="pCurrent" name="currentPassword" autocomplete="current-password" required/>
+                    <span class="error-text" data-error-for="currentPassword"></span>
+                </div>
+                <div class="field">
+                    <label class="label" for="pNew">New password</label>
+                    <input class="input" type="password" id="pNew" name="newPassword" minlength="8" autocomplete="new-password" required/>
+                    <div class="strength" data-strength-for="pNew" data-score="0"><i></i><i></i><i></i><i></i></div>
+                    <span class="help">8+ characters with upper- and lower-case letters and a digit.</span>
+                    <span class="error-text" data-error-for="newPassword"></span>
+                </div>
+                <div class="field">
+                    <label class="label" for="pConfirm">Repeat new password</label>
+                    <input class="input" type="password" id="pConfirm" name="confirmPassword" autocomplete="new-password" required/>
+                    <span class="error-text" data-error-for="confirmPassword"></span>
+                </div>
+                <button class="btn btn--ink" type="submit"><span class="spinner"></span><span class="btn-label">Change password</span></button>
+            </div>
+        </form>
+    </div>
+</th:block>
+
+<th:block th:fragment="scripts">
+    <script src="/js/profile.js"></script>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title=${member.username}, content=~{::content}, scripts=~{::scripts})}">
+<body>
+<th:block th:fragment="content"
+          th:with="self=${currentUser != null and currentUser.id == member.id}">
+
+    <a href="/admin/users" class="back-link">
+        <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-left"/></svg> All people
+    </a>
+
+    <section class="card profile-hero" th:id="'user-' + ${member.id}" style="justify-content:space-between;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:1.2rem">
+            <span class="avatar avatar--lg" th:attr="data-hue=${member.id % 6}"
+                  th:text="${#strings.toUpperCase(#strings.substring(member.username, 0, 1))}">U</span>
+            <div>
+                <p class="kicker" th:text="${member.email}">user@example.com</p>
+                <h2 style="margin:.3rem 0 .45rem">
+                    <span th:text="${member.username}">user</span><span class="you-badge" th:if="${self}">you</span>
+                </h2>
+                <span class="pill" data-role-pill th:classappend="${member.role.name() == 'ADMIN'} ? 'pill--admin' : 'pill--user'"
+                      th:text="${member.role.name() == 'ADMIN' ? 'Admin' : 'Member'}">Member</span>
+                <span class="pill" data-active-pill th:classappend="${member.active} ? 'pill--active' : 'pill--inactive'"
+                      th:text="${member.active ? 'Active' : 'Paused'}">Active</span>
+                <span class="muted mono" style="font-size:.75rem;margin-left:.4rem" th:if="${member.createdAt != null}"
+                      th:text="${'since ' + #temporals.format(member.createdAt, 'd MMM yyyy')}">since</span>
+            </div>
+        </div>
+        <div class="actions" th:unless="${self}">
+            <button class="btn btn--ghost btn--sm" type="button" data-action="role"
+                    th:attr="data-user-id=${member.id},data-role=${member.role},data-name=${member.username}"
+                    th:text="${member.role.name() == 'ADMIN' ? 'Make member' : 'Make admin'}">Make admin</button>
+            <button class="btn btn--ghost btn--sm" type="button" data-action="toggle"
+                    th:attr="data-user-id=${member.id},data-active=${member.active},data-name=${member.username}"
+                    th:hidden="${member.role.name() == 'ADMIN'}"
+                    th:text="${member.active ? 'Pause' : 'Restore'}">Pause</button>
+        </div>
+    </section>
+
+    <div class="dash-grid" style="margin-top:1.8rem">
+        <section class="card">
+            <div class="card-head">
+                <div><p class="kicker">Owned by them</p><h2 th:text="${tasks.totalElements + (tasks.totalElements == 1 ? ' task' : ' tasks')}">5 tasks</h2></div>
+            </div>
+            <div class="table-wrap" th:if="${tasks.hasContent()}">
+                <table class="table">
+                    <thead><tr><th>Task</th><th>Priority</th><th>Status</th><th>Due</th></tr></thead>
+                    <tbody>
+                    <tr th:each="t : ${tasks.content}">
+                        <td>
+                            <a class="cell-title" th:href="@{/tasks/{id}(id=${t.id})}" th:text="${t.title}">Title</a>
+                            <div class="cell-sub" th:if="${t.assigneeUsername != null}" th:text="${'→ ' + t.assigneeUsername}">assignee</div>
+                        </td>
+                        <td><span th:replace="~{fragments/ui :: prio(${t.priority})}"></span></td>
+                        <td><span th:replace="~{fragments/ui :: status(${t})}"></span></td>
+                        <td><span th:replace="~{fragments/ui :: due(${t})}"></span><span class="muted" th:if="${t.dueDate == null}">—</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty empty--sm" th:unless="${tasks.hasContent()}">
+                <svg th:replace="~{fragments/ui :: artPlane}"></svg>
+                <h3>No tasks yet</h3>
+                <p>They haven't written anything down.</p>
+            </div>
+            <nav class="pager card-pad" th:if="${tasks.totalPages > 1}" style="margin:0">
+                <a class="btn btn--ghost btn--sm" th:href="@{/admin/users/{id}(id=${member.id}, page=${currentPage - 1})}" th:attr="aria-disabled=${tasks.first}">Previous</a>
+                <span class="mono" th:text="${'Page ' + (currentPage + 1) + ' of ' + tasks.totalPages}">Page 1</span>
+                <a class="btn btn--ghost btn--sm" th:href="@{/admin/users/{id}(id=${member.id}, page=${currentPage + 1})}" th:attr="aria-disabled=${tasks.last}">Next</a>
+            </nav>
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <div><p class="kicker">Their footprints</p><h2>Recent activity</h2></div>
+                <a class="btn btn--quiet btn--sm" th:href="@{/admin/audit-logs(actor=${member.email})}">All →</a>
+            </div>
+            <ul class="timeline feed" th:if="${activity.hasContent()}">
+                <th:block th:each="log : ${activity.content}"><li th:replace="~{fragments/ui :: auditItem(${log})}"></li></th:block>
+            </ul>
+            <div class="empty empty--sm" th:unless="${activity.hasContent()}">
+                <h3>No activity</h3>
+                <p>Nothing recorded for this account yet.</p>
+            </div>
+        </section>
+    </div>
+</th:block>
+
+<th:block th:fragment="scripts">
+    <script src="/js/admin.js"></script>
+</th:block>
+</body>
+</html>

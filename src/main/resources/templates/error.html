@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Error')}"></head>
+<body>
+<main th:replace="~{fragments/error :: page(${status != null ? status : 'Oops'}, 'Something went sideways', 'An unexpected error occurred.')}"></main>
+<script src="/js/main.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@
 
     <groupId>com.tasknova</groupId>
     <artifactId>tasknova</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <name>TaskNova</name>
     <description>Task Management System — Spring Boot + Thymeleaf + H2 + JWT</description>
 

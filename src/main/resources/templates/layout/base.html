@@ -1,89 +1,75 @@
 <!DOCTYPE html>
-<html lang="en"
+<!--/*
+  App shell layout. Pages use it like:
+    <html th:replace="~{layout/base :: layout(title='Dashboard', content=~{::content}, scripts=~{::scripts})}">
+  and define th:fragment="content" (and optionally th:fragment="scripts").
+*/-->
+<html lang="en" th:fragment="layout(title, content, scripts)"
       xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" th:content="${pageDescription ?: 'TaskNova — Manage your tasks efficiently'}"/>
-    <title th:text="${pageTitle != null ? pageTitle + ' | TaskNova' : 'TaskNova'}">TaskNova</title>
-
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-
-    <!-- Main CSS -->
-    <link rel="stylesheet" th:href="@{/css/main.css}"/>
-
-    <!-- Page-specific CSS slot -->
-    <th:block th:replace="${extraCss} ?: ~{}"/>
-</head>
+<head th:replace="~{fragments/head :: head(${title})}"></head>
 <body>
 
-<!-- ═══════════════════════════════════════════════
-     SIDEBAR + MAIN LAYOUT WRAPPER
-     ═══════════════════════════════════════════════ -->
-<div class="app-shell">
+<div class="shell">
+    <aside class="sidebar" id="sidebar" th:replace="~{layout/sidebar :: sidebar}"></aside>
+    <div class="scrim" id="scrim"></div>
 
-    <!-- Sidebar: swap between user-nav and admin-nav based on role -->
-    <aside class="sidebar" id="sidebar">
-        <sec:authorize access="hasRole('ADMIN')">
-            <div th:replace="~{layout/admin-nav :: adminNav}"></div>
-        </sec:authorize>
-        <sec:authorize access="hasRole('USER') and !hasRole('ADMIN')">
-            <div th:replace="~{layout/user-nav :: userNav}"></div>
-        </sec:authorize>
-    </aside>
-
-    <!-- Main content area -->
-    <main class="main-content">
-
-        <!-- Top bar -->
+    <div class="main">
+        <!-- Mobile top bar -->
         <header class="topbar">
-            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-                <span></span><span></span><span></span>
+            <button class="btn btn--quiet btn--icon" id="menuBtn" type="button" aria-label="Open menu" aria-controls="sidebar">
+                <svg class="i"><use href="/assets/icons.svg#i-menu"/></svg>
             </button>
-            <div class="topbar-right">
-                <div class="user-pill">
-                    <div class="user-avatar" sec:authentication="name" th:text="${#strings.substring(#authentication.name, 0, 1).toUpperCase()}">U</div>
-                    <span class="user-name" sec:authentication="name">User</span>
-                    <sec:authorize access="hasRole('ADMIN')">
-                        <span class="role-badge role-badge--admin">Admin</span>
-                    </sec:authorize>
-                    <sec:authorize access="hasRole('USER') and !hasRole('ADMIN')">
-                        <span class="role-badge role-badge--user">User</span>
-                    </sec:authorize>
-                </div>
-                <form th:action="@{/auth/logout}" method="post" style="margin:0">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                    <button type="submit" class="btn-logout" title="Sign out">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                            <polyline points="16 17 21 12 16 7"/>
-                            <line x1="21" y1="12" x2="9" y2="12"/>
-                        </svg>
-                    </button>
-                </form>
-            </div>
+            <a href="/" class="brand" style="padding:0">
+                <span class="brand-mark"><svg class="i"><use href="/assets/icons.svg#i-nova"/></svg></span>
+                <span class="brand-name">Task<em>Nova</em></span>
+            </a>
+            <button class="btn btn--quiet btn--icon" type="button" data-theme-toggle aria-label="Toggle dark mode">
+                <svg class="i theme-icon-dark"><use href="/assets/icons.svg#i-moon"/></svg>
+                <svg class="i theme-icon-light"><use href="/assets/icons.svg#i-sun"/></svg>
+            </button>
         </header>
 
-        <!-- Page content slot -->
-        <div class="page-content">
+        <main class="page" id="main">
             <th:block th:replace="${content}"/>
-        </div>
+        </main>
 
-    </main>
+        <footer class="page-foot">
+            <span>TaskNova · printed in cobalt &amp; pink</span>
+            <span><span class="kbd">Ctrl K</span> jump &nbsp;·&nbsp; <span class="kbd">N</span> new task &nbsp;·&nbsp; <span class="kbd">/</span> search &nbsp;·&nbsp; <a href="/swagger-ui.html" target="_blank" rel="noopener">API docs ↗</a></span>
+        </footer>
+    </div>
 </div>
 
-<!-- Toast notification container -->
-<div id="toast-container" class="toast-container"></div>
+<!-- Shared confirm dialog (used by Confirm.ask in main.js) -->
+<dialog class="modal modal--sm" id="confirmDialog" aria-labelledby="confirmTitle">
+    <form method="dialog">
+        <div class="modal-head">
+            <h2 id="confirmTitle">Are you sure?</h2>
+        </div>
+        <div class="modal-body"><p id="confirmMessage"></p></div>
+        <div class="modal-foot">
+            <button class="btn btn--ghost" value="cancel" type="submit">Cancel</button>
+            <button class="btn btn--danger" value="confirm" type="submit" id="confirmOk">Confirm</button>
+        </div>
+    </form>
+</dialog>
 
-<!-- Main JS -->
-<script th:src="@{/js/main.js}"></script>
+<!-- Command palette (Ctrl/Cmd + K) -->
+<dialog class="modal cmdk" id="cmdk" aria-label="Search or jump to">
+    <div class="cmdk-search">
+        <svg class="i"><use href="/assets/icons.svg#i-search"/></svg>
+        <input type="text" id="cmdkInput" placeholder="Search tasks or jump to a page…" autocomplete="off"
+               role="combobox" aria-expanded="true" aria-controls="cmdkList" aria-autocomplete="list"/>
+        <span class="kbd">Esc</span>
+    </div>
+    <ul class="cmdk-list" id="cmdkList" role="listbox"></ul>
+    <div class="cmdk-foot"><span>↑ ↓ to move</span><span>↵ to open</span></div>
+</dialog>
 
-<!-- Page-specific JS slot -->
-<th:block th:replace="${extraJs} ?: ~{}"/>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
+<script src="/js/main.js"></script>
+<th:block th:replace="${scripts}"/>
 </body>
 </html>

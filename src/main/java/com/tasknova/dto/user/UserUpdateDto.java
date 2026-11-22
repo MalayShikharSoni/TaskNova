@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * DTO for updating a user's own profile via PUT /api/users/me
+ * DTO for updating the signed-in user's profile via PUT /api/users/me
  * All fields are optional.
  */
 @Data

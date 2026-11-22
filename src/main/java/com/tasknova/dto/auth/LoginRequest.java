@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * Request body for POST /api/auth/login
+ * Request body for POST /api/auth/login.
+ * The {@code email} field accepts either an email address or a username.
  */
 @Data
 public class LoginRequest {

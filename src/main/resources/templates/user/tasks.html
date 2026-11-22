@@ -1,202 +1,100 @@
 <!DOCTYPE html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head th:replace="~{layout/base :: head(pageTitle='My Tasks')}"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(title='All tasks', content=~{::content}, scripts=~{::scripts})}">
 <body>
-<div th:replace="~{layout/base :: body(content=~{::mainContent})}">
-<th:block th:fragment="mainContent">
+<th:block th:fragment="content"
+          th:with="qp=${q != '' ? q : null}, tp=${selectedTag != '' ? selectedTag : null}">
 
-<div class="page-header">
-    <div>
-        <h1 class="page-title">My Tasks</h1>
-        <p class="page-subtitle">Manage and track all your tasks</p>
-    </div>
-    <button class="btn btn--primary" id="openCreateTaskModal">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        New Task
-    </button>
-</div>
-
-<!-- ── Filters ── -->
-<form th:action="@{/tasks}" method="get" class="filter-bar" id="filterForm">
-    <div class="filter-group">
-        <label class="filter-label">Status</label>
-        <select name="status" class="form-input form-select filter-select" id="statusFilter" onchange="this.form.submit()">
-            <option value="">All Statuses</option>
-            <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.name().replace('_',' ')}"
-                    th:selected="${selectedStatus == s}">Status</option>
-        </select>
-    </div>
-    <div class="filter-group">
-        <label class="filter-label">Priority</label>
-        <select name="priority" class="form-input form-select filter-select" id="priorityFilter" onchange="this.form.submit()">
-            <option value="">All Priorities</option>
-            <option th:each="p : ${priorities}" th:value="${p}" th:text="${p.name()}"
-                    th:selected="${selectedPriority == p}">Priority</option>
-        </select>
-    </div>
-    <a th:href="@{/tasks}" class="btn btn--ghost btn--sm">Clear filters</a>
-</form>
-
-<!-- ── Task Table ── -->
-<div class="card" th:if="${tasks.hasContent()}">
-    <div class="table-wrapper">
-        <table class="data-table" id="taskTable">
-            <thead>
-                <tr>
-                    <th>Task</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Due Date</th>
-                    <th>Tags</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr th:each="task : ${tasks.content}"
-                    th:classappend="${task.overdue} ? 'row--overdue' : ''"
-                    th:id="'task-row-' + ${task.id}">
-                    <td>
-                        <div class="task-title-cell">
-                            <span class="priority-dot"
-                                  th:classappend="'priority-dot--' + ${#strings.toLowerCase(task.priority)}"></span>
-                            <div>
-                                <p class="task-name" th:text="${task.title}">Title</p>
-                                <p class="task-desc" th:text="${#strings.abbreviate(task.description ?: '', 60)}"></p>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span class="priority-badge"
-                              th:classappend="'priority-badge--' + ${#strings.toLowerCase(task.priority)}"
-                              th:text="${task.priority}">MEDIUM</span>
-                    </td>
-                    <td>
-                        <span class="status-badge"
-                              th:classappend="'status-badge--' + ${#strings.toLowerCase(#strings.replace(task.status.name(), '_', '-'))}"
-                              th:text="${task.statusLabel}">Todo</span>
-                    </td>
-                    <td>
-                        <span th:if="${task.dueDate != null}"
-                              th:text="${#temporals.format(task.dueDate, 'MMM d, yyyy')}"
-                              th:classappend="${task.overdue} ? 'text--danger' : ''">—</span>
-                        <span th:if="${task.dueDate == null}" class="text--muted">—</span>
-                    </td>
-                    <td>
-                        <div class="tag-list">
-                            <span th:each="tag : ${task.tags}" class="tag-chip" th:text="'#' + ${tag}">tag</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <a th:href="@{/tasks/{id}(id=${task.id})}" class="btn btn--ghost btn--sm">Edit</a>
-                            <button class="btn btn--danger btn--sm"
-                                    th:data-task-id="${task.id}"
-                                    th:data-task-title="${task.title}"
-                                    onclick="confirmDelete(this)">Delete</button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Empty state -->
-<div class="empty-state" th:if="${!tasks.hasContent()}">
-    <div class="empty-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-    </div>
-    <p class="empty-title">No tasks found</p>
-    <p class="empty-subtitle" th:text="${(selectedStatus != null or selectedPriority != null) ? 'Try clearing your filters' : 'Create your first task to get started'}"></p>
-    <button class="btn btn--primary" id="openCreateTaskModal2">New Task</button>
-</div>
-
-<!-- ── Pagination ── -->
-<div class="pagination" th:if="${tasks.totalPages > 1}">
-    <a th:href="@{/tasks(page=${currentPage - 1}, status=${selectedStatus}, priority=${selectedPriority})}"
-       class="page-btn" th:classappend="${currentPage == 0} ? 'page-btn--disabled' : ''"
-       th:attr="aria-disabled=${currentPage == 0}">← Prev</a>
-    <span class="page-info"
-          th:text="'Page ' + ${currentPage + 1} + ' of ' + ${tasks.totalPages}">Page 1</span>
-    <a th:href="@{/tasks(page=${currentPage + 1}, status=${selectedStatus}, priority=${selectedPriority})}"
-       class="page-btn"
-       th:classappend="${currentPage + 1 == tasks.totalPages} ? 'page-btn--disabled' : ''"
-       th:attr="aria-disabled=${currentPage + 1 == tasks.totalPages}">Next →</a>
-</div>
-
-<!-- ════════════════════════════════
-     Create Task Modal (same as dashboard)
-     ════════════════════════════════ -->
-<div class="modal-overlay" id="createTaskModal" style="display:none">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title">Create New Task</h3>
-            <button class="modal-close" id="closeCreateTaskModal" aria-label="Close">&times;</button>
+    <header class="page-head">
+        <div>
+            <p class="kicker">
+                <span>Workspace</span><span class="dot"></span>
+                <span th:text="${tasks.totalElements + (tasks.totalElements == 1 ? ' task' : ' tasks') + (filtered ? ' match' : '')}">8 tasks</span>
+            </p>
+            <h1>Everything on <em>your list</em></h1>
+            <p class="lede">Tick things off, filter the noise, or open a task to give it more detail.</p>
         </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label class="form-label" for="taskTitle">Title <span class="required">*</span></label>
-                <input type="text" id="taskTitle" class="form-input" placeholder="What needs to be done?" maxlength="200"/>
-                <span class="form-error" id="taskTitleError"></span>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="taskDescription">Description</label>
-                <textarea id="taskDescription" class="form-input form-textarea" rows="3" placeholder="Add details..."></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="taskDueDate">Due Date</label>
-                    <input type="date" id="taskDueDate" class="form-input"/>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="taskPriority">Priority</label>
-                    <select id="taskPriority" class="form-input form-select">
-                        <option value="LOW">Low</option>
-                        <option value="MEDIUM" selected>Medium</option>
-                        <option value="HIGH">High</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Tags</label>
-                <div class="tag-picker" id="tagPicker"></div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn--ghost" id="cancelCreateTask">Cancel</button>
-            <button class="btn btn--primary" id="submitCreateTask">
-                <span id="createTaskBtnText">Create Task</span>
-                <span id="createTaskSpinner" class="btn-spinner" style="display:none"></span>
+        <div class="page-actions">
+            <nav class="view-switch" aria-label="View">
+                <a href="/tasks" class="is-on"><svg class="i i-sm"><use href="/assets/icons.svg#i-list"/></svg> List</a>
+                <a href="/tasks/board"><svg class="i i-sm"><use href="/assets/icons.svg#i-board"/></svg> Board</a>
+            </nav>
+            <button class="btn btn--primary" type="button" data-open-create>
+                <svg class="i"><use href="/assets/icons.svg#i-plus"/></svg> New task
             </button>
         </div>
-    </div>
-</div>
+    </header>
 
-<!-- Delete confirm modal -->
-<div class="modal-overlay" id="deleteModal" style="display:none">
-    <div class="modal modal--sm">
-        <div class="modal-header">
-            <h3 class="modal-title">Delete Task</h3>
-            <button class="modal-close" id="closeDeleteModal">&times;</button>
+    <!-- Filters -->
+    <form class="toolbar" id="filterForm" action="/tasks" method="get" role="search">
+        <div class="search">
+            <svg class="i"><use href="/assets/icons.svg#i-search"/></svg>
+            <input class="input" type="search" name="q" id="searchInput" th:value="${q}"
+                   placeholder="Search titles and notes…" aria-label="Search tasks"/>
         </div>
-        <div class="modal-body">
-            <p>Are you sure you want to delete <strong id="deleteTaskTitle"></strong>? This action cannot be undone.</p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn--ghost" id="cancelDelete">Cancel</button>
-            <button class="btn btn--danger" id="confirmDeleteBtn">Delete</button>
-        </div>
-    </div>
-</div>
+        <select class="input" name="priority" aria-label="Priority" data-autosubmit>
+            <option value="">Any priority</option>
+            <option th:each="p : ${priorities}" th:value="${p}" th:selected="${selectedPriority == p}"
+                    th:text="${#strings.capitalize(#strings.toLowerCase(p.name()))}">High</option>
+        </select>
+        <select class="input" name="tag" aria-label="Tag" data-autosubmit>
+            <option value="">Any tag</option>
+            <option th:each="tg : ${allTags}" th:value="${tg.name}" th:selected="${selectedTag == tg.name}"
+                    th:text="${'#' + tg.name}">#bug</option>
+        </select>
+        <input type="hidden" name="status" th:value="${selectedStatus}"/>
+        <a th:if="${filtered}" href="/tasks" class="btn btn--quiet btn--sm">
+            <svg class="i i-sm"><use href="/assets/icons.svg#i-x"/></svg> Clear
+        </a>
+    </form>
 
+    <div class="chips" style="margin:-.4rem 0 1.4rem" role="group" aria-label="Status filter">
+        <button type="button" class="chip" data-status-chip="" th:classappend="${selectedStatus == null} ? 'is-on'">Everything</button>
+        <button type="button" class="chip" data-status-chip="TODO" th:classappend="${selectedStatus != null and selectedStatus.name() == 'TODO'} ? 'is-on'">To do</button>
+        <button type="button" class="chip" data-status-chip="IN_PROGRESS" th:classappend="${selectedStatus != null and selectedStatus.name() == 'IN_PROGRESS'} ? 'is-on'">In progress</button>
+        <button type="button" class="chip" data-status-chip="DONE" th:classappend="${selectedStatus != null and selectedStatus.name() == 'DONE'} ? 'is-on'">Done</button>
+    </div>
+
+    <section class="card" th:if="${tasks.hasContent()}">
+        <ul class="rows" id="taskRows">
+            <th:block th:each="t : ${tasks.content}"><li th:replace="~{fragments/ui :: taskRow(${t})}"></li></th:block>
+        </ul>
+    </section>
+
+    <section class="card" th:unless="${tasks.hasContent()}">
+        <div class="empty" th:if="${filtered}">
+            <svg th:replace="~{fragments/ui :: artMagnifier}"></svg>
+            <h3>Nothing matches that</h3>
+            <p>Try a different word, or loosen a filter or two.</p>
+            <a class="btn btn--ghost" href="/tasks">Clear filters</a>
+        </div>
+        <div class="empty" th:unless="${filtered}">
+            <svg th:replace="~{fragments/ui :: artPlane}"></svg>
+            <h3>An empty page</h3>
+            <p>Nothing here yet. Every list starts with one line.</p>
+            <button class="btn btn--primary" type="button" data-open-create>Add a task</button>
+        </div>
+    </section>
+
+    <nav class="pager" th:if="${tasks.totalPages > 1}" aria-label="Pagination">
+        <a class="btn btn--ghost btn--sm"
+           th:href="@{/tasks(page=${currentPage - 1}, status=${selectedStatus}, priority=${selectedPriority}, q=${qp}, tag=${tp})}"
+           th:attr="aria-disabled=${tasks.first}">
+            <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-left"/></svg> Newer
+        </a>
+        <span class="mono" th:text="${'Page ' + (currentPage + 1) + ' of ' + tasks.totalPages}">Page 1 of 2</span>
+        <a class="btn btn--ghost btn--sm"
+           th:href="@{/tasks(page=${currentPage + 1}, status=${selectedStatus}, priority=${selectedPriority}, q=${qp}, tag=${tp})}"
+           th:attr="aria-disabled=${tasks.last}">
+            Older <svg class="i i-sm"><use href="/assets/icons.svg#i-arrow-right"/></svg>
+        </a>
+    </nav>
+
+    <dialog th:replace="~{fragments/ui :: createModal}"></dialog>
 </th:block>
-</div>
-<script th:src="@{/js/tasks.js}"></script>
+
+<th:block th:fragment="scripts">
+    <script src="/js/tasks.js"></script>
+</th:block>
 </body>
 </html>

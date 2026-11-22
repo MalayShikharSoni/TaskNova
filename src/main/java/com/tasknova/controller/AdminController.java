@@ -4,6 +4,7 @@ import com.tasknova.dto.admin.AdminDashboardDto;
 import com.tasknova.dto.admin.AuditLogDto;
 import com.tasknova.dto.task.TaskResponseDto;
 import com.tasknova.dto.user.UserResponseDto;
+import com.tasknova.entity.enums.TaskStatus;
 import com.tasknova.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,16 +42,21 @@ public class AdminController {
     ) {
         Page<UserResponseDto> users = adminService.getAllUsers(search, page);
         model.addAttribute("users",       users);
-        model.addAttribute("search",      search);
-        model.addAttribute("currentPage", page);
+        model.addAttribute("search",      search == null ? "" : search.trim());
+        model.addAttribute("currentPage", Math.max(page, 0));
         return "admin/users";
     }
 
-    /** Single user detail page (admin view) */
+    /** Single user detail page (admin view): profile, task list, recent activity */
     @GetMapping("/users/{id}")
-    public String userDetail(@PathVariable Long id, Model model) {
-        UserResponseDto user = adminService.getUserById(id);
-        model.addAttribute("user", user);
+    public String userDetail(@PathVariable Long id,
+                             @RequestParam(defaultValue = "0") int page,
+                             Model model) {
+        UserResponseDto member = adminService.getUserById(id);
+        model.addAttribute("member",      member);
+        model.addAttribute("tasks",       adminService.getTasksOwnedBy(id, page));
+        model.addAttribute("activity",    adminService.getAuditLogsByActor(member.getEmail(), 0));
+        model.addAttribute("currentPage", Math.max(page, 0));
         return "admin/user-detail";
     }
 
@@ -58,13 +64,16 @@ public class AdminController {
     @GetMapping("/tasks")
     public String taskManagement(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) TaskStatus status,
             @RequestParam(defaultValue = "0") int page,
             Model model
     ) {
-        Page<TaskResponseDto> tasks = adminService.getAllTasks(search, page);
-        model.addAttribute("tasks",       tasks);
-        model.addAttribute("search",      search);
-        model.addAttribute("currentPage", page);
+        Page<TaskResponseDto> tasks = adminService.getAllTasks(search, status, page);
+        model.addAttribute("tasks",          tasks);
+        model.addAttribute("search",         search == null ? "" : search.trim());
+        model.addAttribute("selectedStatus", status);
+        model.addAttribute("statuses",       TaskStatus.values());
+        model.addAttribute("currentPage",    Math.max(page, 0));
         return "admin/tasks";
     }
 
@@ -80,8 +89,8 @@ public class AdminController {
                 : adminService.getAuditLogs(page);
 
         model.addAttribute("logs",        logs);
-        model.addAttribute("actor",       actor);
-        model.addAttribute("currentPage", page);
+        model.addAttribute("actor",       actor == null ? "" : actor.trim());
+        model.addAttribute("currentPage", Math.max(page, 0));
         return "admin/audit-logs";
     }
 }

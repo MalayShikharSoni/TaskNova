@@ -24,14 +24,16 @@ import java.util.Map;
 
 /**
  * REST API for task CRUD operations.
- * All endpoints require a valid JWT Bearer token.
+ * All endpoints require authentication (Bearer token or session cookie).
  *
- * <p>GET    /api/tasks         — paginated task list for current user
+ * <p>Users see tasks they own plus tasks an admin assigned to them.
+ *
+ * <p>GET    /api/tasks         — paginated list (?status, ?priority, ?search, ?tag, ?page)
  * <p>POST   /api/tasks         — create new task
  * <p>GET    /api/tasks/{id}    — get single task
- * <p>PUT    /api/tasks/{id}    — full update
+ * <p>PUT    /api/tasks/{id}    — replace editable fields (see TaskUpdateDto)
  * <p>PATCH  /api/tasks/{id}    — partial update (status change etc.)
- * <p>DELETE /api/tasks/{id}    — delete task
+ * <p>DELETE /api/tasks/{id}    — delete task (owner or admin)
  * <p>GET    /api/tasks/recent  — 5 most recent tasks (dashboard widget)
  */
 @RestController
@@ -50,10 +52,12 @@ public class TaskApiController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) Priority priority,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "0") int page
     ) {
         Long userId = resolveUserId(userDetails);
-        Page<TaskResponseDto> tasks = taskService.getTasksForUser(userId, status, priority, page);
+        Page<TaskResponseDto> tasks = taskService.getTasksForUser(userId, status, priority, search, tag, page);
         return ResponseEntity.ok(tasks);
     }
 
@@ -115,7 +119,7 @@ public class TaskApiController {
             throw new UnauthorizedException("Only admins can change task assignees.");
         }
 
-        return ResponseEntity.ok(taskService.updateTask(id, dto, userId, isAdmin));
+        return ResponseEntity.ok(taskService.updateTask(id, dto, userId, isAdmin, true));
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -124,12 +128,15 @@ public class TaskApiController {
     @PatchMapping("/{id}")
     public ResponseEntity<TaskResponseDto> patchTask(
             @PathVariable Long id,
-            @RequestBody TaskUpdateDto dto,
+            @Valid @RequestBody TaskUpdateDto dto,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         Long userId  = resolveUserId(userDetails);
         boolean isAdmin = isAdmin(userDetails);
-        return ResponseEntity.ok(taskService.updateTask(id, dto, userId, isAdmin));
+        if (!isAdmin && dto.getAssigneeId() != null) {
+            throw new UnauthorizedException("Only admins can change task assignees.");
+        }
+        return ResponseEntity.ok(taskService.updateTask(id, dto, userId, isAdmin, false));
     }
 
     // ────────────────────────────────────────────────────────────────

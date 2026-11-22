@@ -35,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
     private final CustomUserDetailsService userDetailsService;
 
-    public static final String JWT_COOKIE_NAME = "tasknova_jwt";
+    public static final String JWT_COOKIE_NAME = JwtCookieService.COOKIE_NAME;
 
     // ────────────────────────────────────────────────────────────────
     //  Skip static asset paths only

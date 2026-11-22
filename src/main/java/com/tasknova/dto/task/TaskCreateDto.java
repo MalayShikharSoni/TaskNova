@@ -28,7 +28,7 @@ public class TaskCreateDto {
 
     private Priority priority = Priority.MEDIUM;
 
-    /** Tag names to attach (will be created if they don't exist) */
+    /** Names of existing tags to attach (case-insensitive). Unknown names are rejected with 400. */
     private Set<String> tagNames = new HashSet<>();
 
     /** Only admins can populate this field */

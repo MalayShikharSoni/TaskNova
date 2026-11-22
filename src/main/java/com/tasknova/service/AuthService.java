@@ -1,6 +1,5 @@
 package com.tasknova.service;
 
-import com.tasknova.config.JwtConfig;
 import com.tasknova.dto.auth.JwtResponse;
 import com.tasknova.dto.auth.LoginRequest;
 import com.tasknova.dto.auth.RegisterRequest;
@@ -9,13 +8,12 @@ import com.tasknova.entity.enums.Role;
 import com.tasknova.exception.ResourceNotFoundException;
 import com.tasknova.exception.ValidationException;
 import com.tasknova.repository.UserRepository;
+import com.tasknova.security.JwtCookieService;
 import com.tasknova.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,7 +25,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
+import java.util.Locale;
 
 /**
  * Handles user registration and JWT-based login.
@@ -41,7 +39,7 @@ public class AuthService {
     private final PasswordEncoder         passwordEncoder;
     private final AuthenticationManager    authenticationManager;
     private final JwtTokenProvider        jwtTokenProvider;
-    private final JwtConfig               jwtConfig;
+    private final JwtCookieService        jwtCookieService;
     private final AuditService            auditService;
 
     private final HttpSessionSecurityContextRepository securityContextRepository =
@@ -58,25 +56,30 @@ public class AuthService {
      */
     @Transactional
     public void register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email    = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        String username = request.getUsername().trim();
+
+        // Login matches email/username case-insensitively, so uniqueness checks must too —
+        // otherwise "Admin" and "admin" would make sign-in ambiguous.
+        if (userRepository.findByEmailOrUsername(email).isPresent()) {
             throw new ValidationException("An account with this email already exists.");
         }
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.findByEmailOrUsername(username).isPresent()) {
             throw new ValidationException("This username is already taken.");
         }
 
         User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
+                .username(username)
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
                 .active(true)
                 .build();
 
-        userRepository.save(user);
-        log.info("New user registered: {}", request.getEmail());
-        auditService.log("SYSTEM", "USER_REGISTERED", "User", null,
-                "New registration: " + request.getEmail());
+        User saved = userRepository.save(user);
+        log.info("New user registered: {}", email);
+        auditService.log(email, "USER_REGISTERED", "User", saved.getId(),
+                "New registration: " + username);
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -96,15 +99,13 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public JwtResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
+        String identifier = request.getEmail().trim();
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(identifier, request.getPassword())
         );
 
-        User user = userRepository.findByEmailOrUsername(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User", "identifier", request.getEmail()));
+        User user = userRepository.findByEmailOrUsername(identifier)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "identifier", identifier));
 
         String roleStr = "ROLE_" + user.getRole().name();
         String token   = jwtTokenProvider.generateToken(user.getEmail(), roleStr, user.getId());
@@ -116,13 +117,7 @@ public class AuthService {
             SecurityContextHolder.setContext(context);
             securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
-            ResponseCookie cookie = ResponseCookie.from("tasknova_jwt", token)
-                    .path("/")
-                    .maxAge(Duration.ofMillis(jwtConfig.getExpirationMs()))
-                    .sameSite("Lax")
-                    .httpOnly(false)
-                    .build();
-            httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            jwtCookieService.write(token, httpRequest, httpResponse);
         }
 
         log.info("User logged in: {}", user.getEmail());

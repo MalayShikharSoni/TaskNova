@@ -1,122 +1,89 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta name="description" content="Sign in to TaskNova — your personal task management workspace"/>
-    <title>Sign In | TaskNova</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" th:href="@{/css/main.css}"/>
-    <link rel="stylesheet" th:href="@{/css/auth.css}"/>
-</head>
-<body class="auth-body">
+<head th:replace="~{fragments/head :: head('Sign in')}"></head>
+<body>
+<div class="auth">
+    <section th:replace="~{fragments/poster :: poster(~{::.poster-head}, 'A quiet place to write down what matters, move it along, and cross it off. Nothing more, nothing less.')}">
+        <h1 class="poster-head">Make the day <em>legible.</em></h1>
+    </section>
 
-<div class="auth-container">
+    <main class="auth-form-side">
+        <button class="btn btn--quiet btn--icon auth-theme" type="button" data-theme-toggle aria-label="Toggle dark mode">
+            <svg class="i theme-icon-dark"><use href="/assets/icons.svg#i-moon"/></svg>
+            <svg class="i theme-icon-light"><use href="/assets/icons.svg#i-sun"/></svg>
+        </button>
 
-    <!-- Left panel: branding -->
-    <div class="auth-panel auth-panel--brand">
-        <div class="auth-brand">
-            <div class="auth-brand-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M9 11l3 3L22 4"/>
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-            </div>
-            <h1 class="auth-brand-name">TaskNova</h1>
-            <p class="auth-brand-tagline">Your workspace for focused productivity.</p>
-        </div>
-        <ul class="auth-features">
-            <li>
-                <span class="auth-feature-icon">✦</span>
-                <span>Manage tasks with priorities &amp; deadlines</span>
-            </li>
-            <li>
-                <span class="auth-feature-icon">✦</span>
-                <span>Organize with tags and status tracking</span>
-            </li>
-            <li>
-                <span class="auth-feature-icon">✦</span>
-                <span>Admin portal with full system oversight</span>
-            </li>
-        </ul>
-    </div>
+        <div class="auth-card reveal-up">
+            <p class="kicker">Welcome back</p>
+            <h1>Sign <em>in</em></h1>
+            <p class="lede">Pick up where you left off.</p>
 
-    <!-- Right panel: form -->
-    <div class="auth-panel auth-panel--form">
-        <div class="auth-form-card">
-            <h2 class="auth-form-title">Welcome back</h2>
-            <p class="auth-form-subtitle">Sign in to your TaskNova account</p>
-
-            <!-- Error alerts -->
-            <div id="loginError" class="alert alert--error" style="display:none">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span id="loginErrorMsg">Invalid credentials.</span>
+            <div class="alert alert--error" th:if="${param.error}" role="alert">
+                <svg class="i"><use href="/assets/icons.svg#i-alert"/></svg>
+                <span>That email/username and password don't match. Try again?</span>
             </div>
-            <div th:if="${param.error}" class="alert alert--error">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-                </svg>
-                Invalid email or password. Please try again.
+            <div class="alert alert--error" th:if="${param.disabled}" role="alert">
+                <svg class="i"><use href="/assets/icons.svg#i-alert"/></svg>
+                <span>This account is paused. Ask an administrator to restore it.</span>
             </div>
-            <div th:if="${param.logout}" class="alert alert--success">
-                You have been signed out successfully.
+            <div class="alert alert--info" th:if="${param.expired}" role="status">
+                <svg class="i"><use href="/assets/icons.svg#i-clock"/></svg>
+                <span>Your session ran out. Sign in again to continue.</span>
             </div>
-            <div th:if="${param.registered}" class="alert alert--success">
-                Account created! Please sign in.
+            <div class="alert alert--success" th:if="${param.logout}" role="status">
+                <svg class="i"><use href="/assets/icons.svg#i-check"/></svg>
+                <span>You're signed out. See you soon.</span>
             </div>
-            <div th:if="${param.disabled}" class="alert alert--error">
-                Your account has been deactivated. Contact support.
+            <div class="alert alert--success" th:if="${param.registered}" role="status">
+                <svg class="i"><use href="/assets/icons.svg#i-check"/></svg>
+                <span>Account created. Sign in to get started.</span>
             </div>
 
-            <!-- Login form -->
-            <form id="loginForm" class="auth-form" method="post" th:action="@{/auth/login-process}" novalidate>
-                <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <div class="form-group">
-                    <label for="email" class="form-label">Email or Username</label>
-                    <input type="text" id="email" name="email" class="form-input"
-                           placeholder="you@example.com or username" autocomplete="username" required/>
-                    <span class="form-error" id="emailError"></span>
+            <form id="loginForm" action="/auth/login-process" method="post" novalidate>
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div class="field">
+                    <label class="label" for="email">Email or username</label>
+                    <input class="input" type="text" id="email" name="email" autocomplete="username"
+                           placeholder="you@example.com" required autofocus/>
+                    <span class="error-text" data-error-for="email"></span>
                 </div>
-
-                <div class="form-group">
-                    <label for="password" class="form-label">Password</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="password" name="password" class="form-input"
-                               placeholder="Your password" autocomplete="current-password" required/>
-                        <button type="button" class="input-toggle" id="togglePassword" aria-label="Show password">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                <circle cx="12" cy="12" r="3"/>
-                            </svg>
+                <div class="field">
+                    <label class="label" for="password">Password</label>
+                    <div class="input-wrap">
+                        <input class="input" type="password" id="password" name="password" autocomplete="current-password"
+                               placeholder="••••••••" required/>
+                        <button class="reveal" type="button" data-reveal="password" aria-label="Show password">
+                            <svg class="i i-sm"><use href="/assets/icons.svg#i-eye"/></svg>
                         </button>
                     </div>
-                    <span class="form-error" id="passwordError"></span>
+                    <span class="error-text" data-error-for="password"></span>
                 </div>
-
-                <button type="submit" class="btn btn--primary btn--full" id="loginBtn">
-                    <span id="loginBtnText">Sign In</span>
-                    <span id="loginSpinner" class="btn-spinner" style="display:none"></span>
+                <button class="btn btn--primary btn--full" type="submit" style="height:46px;margin-top:.4rem">
+                    <span class="spinner"></span><span class="btn-label">Sign in</span>
+                    <svg class="i"><use href="/assets/icons.svg#i-arrow-right"/></svg>
                 </button>
             </form>
 
-            <p class="auth-switch">
-                Don't have an account?
-                <a th:href="@{/auth/register}" class="auth-link">Create one for free</a>
-            </p>
+            <p class="auth-switch">New here? <a href="/auth/register">Make an account</a></p>
 
-            <!-- Demo credentials hint -->
-            <div class="demo-hint">
-                <p class="demo-hint-title">Demo credentials</p>
-                <p>User: <code>demo@tasknova.com</code> / <code>Demo@1234</code></p>
-                <p>Admin: <code>admin@tasknova.com</code> / <code>Admin@1234</code></p>
+            <div class="stub" th:if="${showDemoHint}">
+                <p class="stub-title">Demo pass · try it out</p>
+                <div class="stub-row">
+                    <div><strong>Member</strong><code th:text="${'demo@tasknova.com · ' + demoPassword}">demo@tasknova.com</code></div>
+                    <button class="btn btn--ghost btn--sm" type="button" data-demo-login
+                            th:attr="data-user='demo@tasknova.com',data-pass=${demoPassword}">Use</button>
+                </div>
+                <div class="stub-row" th:if="${showAdminHint}">
+                    <div><strong>Admin</strong><code>admin@tasknova.com · Admin@1234</code></div>
+                    <button class="btn btn--ghost btn--sm" type="button" data-demo-login
+                            data-user="admin@tasknova.com" data-pass="Admin@1234">Use</button>
+                </div>
             </div>
         </div>
-    </div>
+    </main>
 </div>
-
-<script th:src="@{/js/auth.js}"></script>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/js/main.js"></script>
+<script src="/js/auth.js"></script>
 </body>
 </html>

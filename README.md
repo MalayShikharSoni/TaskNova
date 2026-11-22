@@ -1,387 +1,382 @@
-# 🚀 TaskNova — Enterprise Task Management System
+# TaskNova
 
 [![Java 17](https://img.shields.io/badge/Java-17-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot 3.3.5](https://img.shields.io/badge/Spring%20Boot-3.3.5-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
 [![Spring Security 6](https://img.shields.io/badge/Spring%20Security-6-green.svg?style=flat&logo=springsecurity)](https://spring.io/projects/spring-security)
 [![JWT 0.12.6](https://img.shields.io/badge/JWT-jjwt%200.12.6-black.svg?style=flat&logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
-[![Thymeleaf 3](https://img.shields.io/badge/Thymeleaf-3-005F0F.svg?style=flat&logo=thymeleaf)](https://www.thymeleaf.org/)
+[![Thymeleaf 3.1](https://img.shields.io/badge/Thymeleaf-3.1-005F0F.svg?style=flat&logo=thymeleaf)](https://www.thymeleaf.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg?style=flat&logo=docker)](https://www.docker.com/)
-[![Render](https://img.shields.io/badge/Render-Deployable-46E3B7.svg?style=flat&logo=render)](https://render.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-> **TaskNova** is a modern, enterprise-ready task management platform built with **Spring Boot 3.3.5**, featuring a dual-layer security model (interactive Thymeleaf server-side UI + stateless REST API with JWT), asynchronous AOP audit logging, role-based access control (RBAC), and cloud deployment readiness with Docker and Render.
+A task manager built with **Spring Boot 3**, server-rendered with **Thymeleaf**, and backed by a
+**JWT-secured REST API**. It has a personal workspace (list, kanban board, task editor), an admin desk
+(people, every task, audit log), and a risograph-inspired interface with a dark mode.
 
----
-
-## 📌 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture & Tech Stack](#-architecture--tech-stack)
-- [System Architecture Flow](#-system-architecture-flow)
-- [Default Seed Credentials](#-default-seed-credentials)
-- [Quick Start Guide](#-quick-start-guide)
-  - [Prerequisites](#prerequisites)
-  - [Local Installation](#local-installation)
-- [Interactive API Documentation (Swagger UI)](#-interactive-api-documentation-swagger-ui)
-- [REST API Endpoints](#-rest-api-endpoints)
-- [Database & Schema](#-database--schema)
-- [Docker & Containerization](#-docker--containerization)
-- [Cloud Deployment (Render)](#-cloud-deployment-render)
-- [Configuration & Environment Variables](#-configuration--environment-variables)
-- [Project Directory Structure](#-project-directory-structure)
-- [Contributing & License](#-contributing--license)
+<p align="center">
+  <img src="docs/screenshots/dashboard.jpg" alt="TaskNova dashboard" width="900"/>
+</p>
 
 ---
 
-## 🌟 Overview
+## Contents
 
-TaskNova bridges the gap between traditional full-stack web applications and modern headless microservices:
-1. **Interactive Web Portal**: A sleek, dark-mode-first server-rendered interface powered by **Thymeleaf 3**, custom CSS design tokens, glassmorphism UI components, and client-side JavaScript.
-2. **Stateless RESTful API**: Complete REST API endpoints secured via **JWT (JSON Web Tokens)** for mobile apps, SPAs, and third-party integrations.
-3. **Enterprise Governance**: Automated auditing through **Spring AOP** logging user actions and task status transitions asynchronously into an append-only audit trail.
-
----
-
-## ✨ Key Features
-
-### 🔐 Dual-Layer Security & RBAC
-- **Hybrid Security Architecture**:
-  - **Session-based Form Login**: Seamless UX for web portal navigation with CSRF protection.
-  - **Stateless Bearer JWT Authentication**: HMAC-SHA256 tokens for all `/api/**` REST endpoints.
-- **Role-Based Access Control**:
-  - `ROLE_USER`: Manage personal tasks, view metrics, assign tags, track progress.
-  - `ROLE_ADMIN`: Global oversight of all tasks, system analytics, user management, and audit log inspection.
-- **Secure Password Storage**: BCrypt hashing with configurable work factor.
-
-### 📋 Full-Cycle Task Management
-- **Status Workflow**: `TODO` ➔ `IN_PROGRESS` ➔ `REVIEW` ➔ `DONE` with real-time transition validation.
-- **Priority Matrix**: `LOW`, `MEDIUM`, `HIGH`, and `URGENT` with visually distinct urgency badges.
-- **Deadlines & Overdue Detection**: Automated overdue flags based on target completion dates.
-- **Dynamic Tagging System**: Reusable tags (`Bug`, `Feature`, `DevOps`, `UI/UX`, etc.) for multifaceted categorization.
-- **Search, Filtering & Pagination**: Filter tasks by title, status, priority, tag, or assignee with pagination support.
-
-### 👥 Dedicated User & Admin Portals
-- **User Dashboard (`/dashboard`)**:
-  - Quick KPI overview (Total, In Progress, Completed, Overdue).
-  - Recent task activity list and priority distribution breakdown.
-- **Task Workspace (`/tasks`)**:
-  - Task search, filter tabs, modal task creator, edit forms, and detailed task viewer.
-- **Admin Control Center (`/admin/dashboard`)**:
-  - System-wide statistics and task distribution metrics.
-  - **User Management (`/admin/users`)**: Activate/deactivate accounts and change user roles.
-  - **All-Tasks View (`/admin/tasks`)**: Administrative oversight across all organizational tasks.
-  - **Audit Logs (`/admin/audit-logs`)**: Real-time trail of who changed what, when, and from where.
-
-### ⚡ Asynchronous AOP Auditing
-- Non-blocking auditing powered by **Spring AOP** (`@Aspect`) and `@Async` thread pools.
-- Automatically captures:
-  - Task creation, modification, status transition, and deletion.
-  - User status changes (activation / suspension).
-  - Client IP addresses, usernames, action types, and entity metadata.
-
-### 🩺 Production Observability
-- **Spring Boot Actuator**: Health check endpoint (`/actuator/health`), application metadata (`/actuator/info`), and runtime metrics.
-- Health check integrated into multi-stage Docker build and cloud orchestration.
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Screenshots](#screenshots)
+- [How it's built](#how-its-built)
+- [Security model](#security-model)
+- [REST API](#rest-api)
+- [Data model](#data-model)
+- [Configuration](#configuration)
+- [Docker](#docker)
+- [Deploying to Render](#deploying-to-render)
+- [Tests](#tests)
+- [Project layout](#project-layout)
+- [License](#license)
 
 ---
 
-## 🛠 Architecture & Tech Stack
+## Features
 
-| Layer | Technology | Details |
-| :--- | :--- | :--- |
-| **Backend Framework** | Spring Boot 3.3.5 | Java 17 LTS, Spring MVC, Spring Data JPA |
-| **Security** | Spring Security 6 + JJWT 0.12.6 | Dual session/JWT authentication, BCrypt |
-| **Database** | H2 Database | Persistent file mode locally, in-memory for cloud container |
-| **ORM / Persistence** | Hibernate 6 / JPA | Auto-DDL update, Auditing, Entity Relationships |
-| **Front-End View** | Thymeleaf 3 + Spring Security Dialect | Server-side templating with modular layouts |
-| **Styling & UI** | Vanilla CSS3 (Custom Design System) | Modern dark theme, glassmorphism, responsive grid |
-| **API Documentation** | Springdoc OpenAPI 2.6.0 | Swagger UI 3 with interactive live testing |
-| **Aspects & Logging** | Spring AOP + SLF4J / Logback | Non-intrusive logging & async audit collection |
-| **DevOps & Containers** | Docker + Render Blueprint | Multi-stage Docker build with non-root user security |
+**Your workspace**
+- **Today** dashboard: greeting, counts by status, a seven-day "this week" strip, what's coming up,
+  recent tasks, a completion ring, and open work by priority. A quick-add line creates a task with one keystroke.
+- **All tasks**: search titles and notes, filter by status, priority and tag, and tick tasks done in
+  place (with a small confetti pop). Due dates read as "Today", "In 3 days" or "2d late".
+- **Board**: three columns (To do, In progress, Done) of index cards. Drag a card to change its
+  status, or add one straight into To do.
+- **Task editor**: title, notes, due date, priority, tags and status, with unsaved-change tracking and
+  <kbd>Ctrl</kbd>+<kbd>S</kbd> to save.
+- **Account**: change your username or password.
+- **Command palette**: <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>K</kbd> to search tasks or jump to any page.
+- **Shortcuts**: <kbd>N</kbd> new task · <kbd>/</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save.
+- **Sidebar counters** for open and overdue tasks.
+- **Dark mode** that follows your OS and remembers your choice.
+
+**Tasks**
+- Status: `TODO` → `IN_PROGRESS` → `DONE`
+- Priority: `LOW`, `MEDIUM`, `HIGH`
+- Tags from a shared vocabulary: `bug`, `feature`, `urgent`, `backend`, `frontend`, `review`, `docs`, `testing`
+- Optional due date; open tasks past their date are flagged **overdue**
+- Admins can **assign** a task to someone else, and it then shows up in that person's workspace
+
+**Admin desk** (`ROLE_ADMIN`)
+- Overview: people and task counts, status distribution, and a live activity feed
+- People: search, promote/demote, pause/restore accounts, and per-person task and activity pages
+- Every task: search and status filter across all accounts
+- Audit log: append-only record of sign-ins, registrations, task changes (including status moves),
+  role changes and account pauses, filterable by who did it
 
 ---
 
-## 📐 System Architecture Flow
+## Quick start
+
+**Prerequisites:** JDK 17+. Maven isn't needed; the wrapper downloads it.
+
+```bash
+git clone https://github.com/MalayShikharSoni/TaskNova.git
+cd TaskNova
+
+./mvnw spring-boot:run          # macOS / Linux
+.\mvnw.cmd spring-boot:run      # Windows
+```
+
+Open <http://localhost:8080> and sign in with a seeded account. The login page has one-click
+"Use" buttons for both:
+
+| Role   | Email                | Username    | Password     |
+| :----- | :------------------- | :---------- | :----------- |
+| Admin  | `admin@tasknova.com` | `admin`     | `Admin@1234` |
+| Member | `demo@tasknova.com`  | `demo_user` | `Demo@1234`  |
+
+You can sign in with either the email or the username. New accounts can be created at `/auth/register`.
+
+Other useful URLs:
+
+| What              | URL |
+| :---------------- | :-- |
+| Swagger UI        | <http://localhost:8080/swagger-ui.html> |
+| OpenAPI spec      | <http://localhost:8080/v3/api-docs> |
+| H2 console        | <http://localhost:8080/h2-console> (JDBC URL `jdbc:h2:file:./data/tasknova`, user `sa`, no password) |
+| Health            | <http://localhost:8080/actuator/health> |
+
+Data is stored in `./data/tasknova.mv.db`, so it survives restarts. Delete that file to start fresh.
+
+---
+
+## Screenshots
+
+| Sign in | Board |
+| :-: | :-: |
+| <img src="docs/screenshots/sign-in.jpg" alt="Sign-in page" width="440"/> | <img src="docs/screenshots/board.jpg" alt="Kanban board" width="440"/> |
+| **Task editor** | **Dark mode** |
+| <img src="docs/screenshots/task-detail.jpg" alt="Task editor" width="440"/> | <img src="docs/screenshots/dashboard-dark.jpg" alt="Dashboard in dark mode" width="440"/> |
+
+The interface is plain CSS and JavaScript, with no front-end framework or build step. The look
+borrows from **risograph printing**: cool off-white paper, navy ink and two spot colours (cobalt
+and fluorescent pink), with emphasised headline words printed slightly off-register. Type is
+**Bricolage Grotesque** for headlines, **Instrument Serif** italic for emphasis, **Instrument Sans**
+for text and **JetBrains Mono** for metadata. Hand-made touches include highlighter nav, scribble
+underlines, hatched bar charts, halftone dots and an index-card board. Styles live in
+[`static/css/main.css`](src/main/resources/static/css/main.css) as design tokens with a dark (deep
+navy) theme override.
+
+---
+
+## How it's built
+
+| Layer         | Technology | Notes |
+| :------------ | :--------- | :---- |
+| Framework     | Spring Boot 3.3.5, Java 17 | Spring MVC, Spring Data JPA, Validation, Actuator |
+| Security      | Spring Security 6 + jjwt 0.12.6 | Form login → HttpOnly JWT cookie; Bearer tokens for API clients; BCrypt(12) |
+| Persistence   | Hibernate 6 + H2 | File database locally, in-memory on Render's free tier |
+| Views         | Thymeleaf 3.1 + Spring Security dialect | One layout, shared fragments for rows, pills and dialogs |
+| Front end     | Vanilla CSS + JS | Native `<dialog>`, HTML5 drag-and-drop, `fetch` |
+| API docs      | springdoc-openapi 2.6 | Swagger UI |
+| Cross-cutting | Spring AOP | Service/controller timing logs; `@Auditable` annotation for declarative auditing |
 
 ```mermaid
 flowchart TD
-    subgraph Clients
-        Browser["🌐 Web Browser (Thymeleaf UI)"]
-        APIClient["📱 Mobile / API Client (cURL, Postman)"]
-    end
-
-    subgraph SecurityLayer ["Spring Security 6 Dual Layer"]
-        FormAuth["Session / Form Login Filter"]
-        JWTAuth["JWT Bearer Authentication Filter"]
-    end
-
-    subgraph Controllers ["Controllers"]
-        WebCtrl["Web Controllers (/dashboard, /tasks, /admin)"]
-        RestCtrl["REST Controllers (/api/auth, /api/tasks, /api/admin)"]
-    end
-
-    subgraph BusinessLayer ["Service & AOP Layer"]
-        TaskSvc["TaskService"]
-        AuthSvc["AuthService"]
-        AdminSvc["AdminService"]
-        AuditAspect["LoggingAspect & AuditService (@Async)"]
-    end
-
-    subgraph DataLayer ["Data Layer (Spring Data JPA)"]
-        UserRepo["UserRepository"]
-        TaskRepo["TaskRepository"]
-        TagRepo["TagRepository"]
-        AuditRepo["AuditLogRepository"]
-        H2DB[("H2 Database\n(File / Memory)")]
-    end
-
-    Browser --> FormAuth --> WebCtrl
-    APIClient --> JWTAuth --> RestCtrl
-
-    WebCtrl --> TaskSvc & AuthSvc & AdminSvc
-    RestCtrl --> TaskSvc & AuthSvc & AdminSvc
-
-    TaskSvc & AuthSvc & AdminSvc --> AuditAspect
-    TaskSvc --> TaskRepo & TagRepo
-    AuthSvc --> UserRepo
-    AdminSvc --> UserRepo & TaskRepo
-    AuditAspect --> AuditRepo
-
-    UserRepo & TaskRepo & TagRepo & AuditRepo --> H2DB
+    Browser["Browser (Thymeleaf pages + fetch)"] --> Filter
+    Client["API client (curl, Postman, apps)"] --> Filter
+    Filter["JwtAuthenticationFilter<br/>Bearer header or tasknova_jwt cookie"] --> Pages & Api
+    Pages["Page controllers<br/>/dashboard /tasks /profile /admin"] --> Services
+    Api["REST controllers<br/>/api/auth /api/tasks /api/users /api/tags /api/admin"] --> Services
+    Services["TaskService · UserService · AuthService · AdminService"] --> Repos
+    Services -->|"@Async"| Audit["AuditService"]
+    Audit --> Repos
+    Repos["Spring Data repositories"] --> H2[("H2")]
 ```
 
----
-
-## 🔑 Default Seed Credentials
-
-When TaskNova boots up, `DataSeeder` automatically populates default accounts (idempotently):
-
-| Role | Username | Email Address | Default Password | Accessible Portals |
-| :--- | :--- | :--- | :--- | :--- |
-| **Administrator** | `admin` | `admin@tasknova.com` | `Admin@1234` | Full Admin Center (`/admin/**`), User Portal (`/tasks`, `/dashboard`), Swagger UI |
-| **Standard User** | `demo_user` | `demo@tasknova.com` | `Demo@1234` | User Portal (`/tasks`, `/dashboard`), Task REST APIs |
-
-> 💡 *Custom users can also be registered at `/auth/register` or via `POST /api/auth/register`.*
+Audit entries are written by `AuditService` on a background thread in their own transaction, so a
+failed audit write never breaks the action that triggered it.
 
 ---
 
-## 🚀 Quick Start Guide
+## Security model
 
-### Prerequisites
-- **Java JDK 17** or higher installed ([Download OpenJDK 17](https://adoptium.net/))
-- **Git**
-- *(Optional)* **Docker** if running containerized
+- **Browser sessions**: `POST /auth/login-process` (form login) issues a signed JWT in the
+  `tasknova_jwt` cookie. The cookie is `HttpOnly` (scripts can't read it), `SameSite=Lax`, and `Secure`
+  when served over HTTPS, including behind a TLS-terminating proxy. Page scripts never handle the token.
+- **API clients**: `POST /api/auth/login` returns the token in the response body; send it as
+  `Authorization: Bearer <token>`.
+- **Unauthenticated requests**: calls to `/api/**` get a plain `401`; page requests are redirected
+  to the sign-in page.
+- **CSRF**: the HTML forms (sign-out) carry a CSRF token. The JSON API relies on `SameSite=Lax` plus
+  JSON bodies, and Bearer clients don't use cookies at all.
+- **Sign-out** is `POST /auth/logout` only. It clears the cookie and the session.
 
-### Local Installation
+**Access rules**
 
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/MalayShikharSoni/TaskNova.git
-   cd TaskNova
-   ```
+| Action on a task | Owner | Assignee | Admin |
+| :--------------- | :---: | :------: | :---: |
+| View / edit      | ✓ | ✓ | ✓ |
+| Change status    | ✓ | ✓ | ✓ |
+| Delete           | ✓ | — | ✓ |
+| Assign           | — | — | ✓ |
 
-2. **Build and Run the Application:**
-   - **Windows (PowerShell / CMD):**
-     ```powershell
-     .\mvnw.cmd spring-boot:run
-     ```
-   - **macOS / Linux:**
-     ```bash
-     chmod +x mvnw
-     ./mvnw spring-boot:run
-     ```
-
-3. **Access the Application:**
-   - **Web UI:** [http://localhost:8080](http://localhost:8080)
-   - **Login Page:** [http://localhost:8080/auth/login](http://localhost:8080/auth/login)
-   - **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-   - **H2 Console:** [http://localhost:8080/h2-console](http://localhost:8080/h2-console)
-     - *JDBC URL:* `jdbc:h2:file:./data/tasknova`
-     - *Username:* `sa`
-     - *Password:* *(empty)*
-   - **Actuator Health:** [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
+Admins can't change their own role or pause their own account, which also guarantees at least one
+admin always remains. Admin accounts must be demoted before they can be paused.
 
 ---
 
-## 📖 Interactive API Documentation (Swagger UI)
+## REST API
 
-TaskNova integrates **Springdoc OpenAPI 3**. You can interactively test every REST endpoint directly in your browser:
+Every endpoint except `/api/auth/**` needs authentication. Errors share one JSON shape:
 
-- **Swagger UI Endpoint:** `http://localhost:8080/swagger-ui.html`
-- **OpenAPI JSON Spec:** `http://localhost:8080/v3/api-docs`
+```json
+{ "timestamp": "…", "status": 400, "error": "Bad Request",
+  "message": "Unknown tag: 'devops'.", "path": "/api/tasks",
+  "fieldErrors": { "title": "Task title is required" } }
+```
 
-To authenticate in Swagger UI:
-1. Send a `POST /api/auth/login` with your credentials.
-2. Copy the returned `accessToken`.
-3. Click the green **Authorize** button at the top of Swagger UI and enter `Bearer <your_token>`.
+(`fieldErrors` only appears for bean-validation failures.)
 
----
+### Auth: `/api/auth`
 
-## 📡 REST API Endpoints
+| Method | Endpoint             | Body | Notes |
+| :----- | :------------------- | :--- | :---- |
+| `POST` | `/api/auth/register` | `{ username, email, password }` | `201`. Username 3–50 chars `[A-Za-z0-9_]`; password 8+ with upper, lower and digit. Email and username are unique case-insensitively. |
+| `POST` | `/api/auth/login`    | `{ email, password }` | `email` accepts an email **or** a username. Also sets the session cookie. |
 
-### Authentication (`/api/auth`)
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Register a new user account | Public |
-| `POST` | `/api/auth/login` | Authenticate and obtain JWT token | Public |
-
-#### Example: Login Request
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "usernameOrEmail": "demo@tasknova.com",
-    "password": "Demo@1234"
-  }'
+  -d '{"email": "demo_user", "password": "Demo@1234"}'
 ```
 
-#### Response:
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-  "tokenType": "Bearer",
+  "token": "eyJhbGciOiJIUzI1NiJ9…",
+  "type": "Bearer",
   "userId": 2,
   "username": "demo_user",
   "email": "demo@tasknova.com",
-  "role": "ROLE_USER"
+  "role": "ROLE_USER",
+  "expiresAt": 1763050000000
 }
 ```
 
+### Tasks: `/api/tasks`
+
+You see tasks you own **and** tasks assigned to you.
+
+| Method   | Endpoint            | Notes |
+| :------- | :------------------ | :---- |
+| `GET`    | `/api/tasks`        | Paged (10 per page, newest first). Query: `status`, `priority`, `search` (title/notes), `tag`, `page`. |
+| `GET`    | `/api/tasks/recent` | Five most recent. |
+| `GET`    | `/api/tasks/{id}`   | |
+| `POST`   | `/api/tasks`        | `{ title, description?, dueDate?, priority?, tagNames?, assigneeId? }` → `201`. `dueDate` can't be in the past; `assigneeId` is admin-only. |
+| `PUT`    | `/api/tasks/{id}`   | **Replace**: `title` required; `description`, `dueDate` and `tagNames` are set exactly as sent (`null` clears them); admins also replace `assigneeId` (`null` unassigns). Omitted `priority`/`status` keep their value. |
+| `PATCH`  | `/api/tasks/{id}`   | **Partial**: only fields you send change, e.g. `{ "status": "DONE" }`. |
+| `DELETE` | `/api/tasks/{id}`   | Owner or admin. |
+
+`tagNames` must use existing tags (case-insensitive; a leading `#` is fine). Unknown names return `400`.
+
+Responses include both `tags` (names) and `tagDetails` (`{ id, name, color }`), plus `statusLabel`,
+`overdue`, `dueInDays` (negative when past), `ownerId`/`ownerUsername`, `assigneeId`/`assigneeUsername`, `createdAt` and `updatedAt`.
+
+### Account and tags
+
+| Method | Endpoint        | Notes |
+| :----- | :-------------- | :---- |
+| `GET`  | `/api/users/me` | Your profile. |
+| `PUT`  | `/api/users/me` | `{ username? }` and/or `{ currentPassword, newPassword }`. |
+| `GET`  | `/api/tags`     | The tag vocabulary with colours. |
+
+### Admin: `/api/admin` (`ROLE_ADMIN`)
+
+| Method  | Endpoint                             | Notes |
+| :------ | :----------------------------------- | :---- |
+| `GET`   | `/api/admin/dashboard`               | Counts, completion %, and the latest audit entries. |
+| `GET`   | `/api/admin/users`                   | Paged; `search` matches username or email. |
+| `GET`   | `/api/admin/users/{id}`              | |
+| `GET`   | `/api/admin/users/assignable`        | Active users, for assignment pickers. |
+| `PATCH` | `/api/admin/users/{id}/toggle-active`| Pause or restore. Not allowed on yourself or on admins. |
+| `PATCH` | `/api/admin/users/{id}/role`         | `{ "role": "ADMIN" \| "USER" }`. Not allowed on yourself. |
+| `GET`   | `/api/admin/tasks`                   | Every task; `search`, `status`, `page`. |
+| `GET`   | `/api/admin/audit-logs`              | Newest first; `actor` does a partial, case-insensitive match. |
+
+Swagger UI documents the same endpoints interactively. Sign in with `POST /api/auth/login`, then
+paste the `token` into **Authorize**.
+
 ---
 
-### Task Management (`/api/tasks`)
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/tasks` | Get paginated tasks with search & filters (`status`, `priority`, `search`) | Authenticated |
-| `GET` | `/api/tasks/{id}` | Get task details by ID | Authenticated |
-| `POST` | `/api/tasks` | Create a new task | Authenticated |
-| `PUT` | `/api/tasks/{id}` | Update an existing task | Authenticated |
-| `PATCH` | `/api/tasks/{id}/status` | Quick status transition (`TODO`, `IN_PROGRESS`, etc.) | Authenticated |
-| `DELETE` | `/api/tasks/{id}` | Delete a task | Owner / Admin |
+## Data model
+
+| Table        | Holds |
+| :----------- | :---- |
+| `users`      | username, email (both unique), BCrypt hash, role (`USER`/`ADMIN`), active flag, created time |
+| `tasks`      | title, description, due date, priority, status, `owner_id`, optional `assignee_id`, created/updated times |
+| `tags`       | unique name and hex colour |
+| `task_tags`  | task ↔ tag join table |
+| `audit_logs` | actor (email), action, target type and id, details, timestamp |
+
+The schema is generated by Hibernate (`ddl-auto=update`). On first start, `DataSeeder` adds the two
+accounts, the tags and a handful of sample tasks (one of them assigned to the demo user by the admin),
+and it never duplicates them on later starts.
 
 ---
 
-### Admin Operations (`/api/admin`)
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/stats` | System KPI summary and counts | `ROLE_ADMIN` |
-| `GET` | `/api/admin/users` | List all registered users | `ROLE_ADMIN` |
-| `PATCH` | `/api/admin/users/{id}/status` | Toggle user active / suspended state | `ROLE_ADMIN` |
-| `GET` | `/api/admin/audit-logs` | Retrieve paginated system audit trails | `ROLE_ADMIN` |
+## Configuration
+
+Everything can be set with environment variables:
+
+| Variable | Default | Purpose |
+| :------- | :------ | :------ |
+| `PORT` | `8080` | HTTP port |
+| `SPRING_PROFILES_ACTIVE` | *(none)* | `prod` turns off the H2 console, caches templates, limits actuator, and **requires** `JWT_SECRET` |
+| `SPRING_DATASOURCE_URL` | `jdbc:h2:file:./data/tasknova;…` | JDBC URL |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `sa` / *(empty)* | Database credentials |
+| `H2_DB_PATH` | `./data/tasknova` | File location used by the `prod` profile |
+| `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` | Schema strategy |
+| `JWT_SECRET` | dev-only built-in key | HS256 key: Base64, or any plain string of 32+ bytes |
+| `JWT_EXPIRATION_MS` | `86400000` (24h) | Token and cookie lifetime |
+| `ADMIN_PASSWORD` | `Admin@1234` | Password for the seeded `admin` account (first start only) |
+| `DEMO_PASSWORD` | `Demo@1234` | Password for the seeded `demo_user` account (first start only) |
+| `SHOW_DEMO_HINT` | `true` | Show the demo-credentials card on the sign-in page. The admin row is hidden automatically once `ADMIN_PASSWORD` is changed. |
+| `SPRING_H2_CONSOLE_ENABLED` | `true` (`false` in `prod`) | `/h2-console` |
+| `LOGGING_LEVEL_COM_TASKNOVA` | `DEBUG` (`INFO` in `prod`) | App log level |
+
+> For anything other than a public demo, set `JWT_SECRET` and `ADMIN_PASSWORD`, and consider
+> `SHOW_DEMO_HINT=false`.
 
 ---
 
-## 🗄 Database & Schema
+## Docker
 
-TaskNova uses an optimized relational schema:
-- **`users`**: User identity, credentials, roles (`ADMIN`, `USER`), status.
-- **`tasks`**: Task records, descriptions, priority, status, due date, owner FK, assignee FK.
-- **`tags`**: Reusable labels (`Bug`, `Feature`, `Documentation`, etc.).
-- **`task_tags`**: Many-to-many junction table associating tasks with tags.
-- **`audit_logs`**: Append-only log recording actor, action, target entity, timestamp, and IP address.
-
----
-
-## 🐳 Docker & Containerization
-
-TaskNova provides a secure, optimized **multi-stage Dockerfile**:
-- **Stage 1 (Builder):** Uses Eclipse Temurin JDK 17 to compile and package the fat JAR.
-- **Stage 2 (Runner):** Uses minimal Eclipse Temurin JRE 17 Alpine Linux.
-- **Security:** Runs as an unprivileged non-root system user (`spring:spring`).
-
-### Build & Run with Docker:
+The multi-stage [`Dockerfile`](./Dockerfile) builds with Maven on Temurin 17, then runs the jar on a
+slim Temurin 17 JRE as a non-root user, with a container health check.
 
 ```bash
-# 1. Build the Docker image
-docker build -t tasknova:latest .
-
-# 2. Run container on port 8080
-docker run -d -p 8080:8080 --name tasknova-app tasknova:latest
-
-# 3. View logs
-docker logs -f tasknova-app
+docker build -t tasknova .
+docker run -d -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e JWT_SECRET="$(openssl rand -base64 48)" \
+  -e ADMIN_PASSWORD='choose-something-strong' \
+  -v tasknova-data:/app/data -e H2_DB_PATH=/app/data/tasknova \
+  --name tasknova tasknova
 ```
 
 ---
 
-## ☁️ Cloud Deployment (Render)
+## Deploying to Render
 
-TaskNova is configured for native deployment to **[Render](https://render.com/)** using the included [`render.yaml`](./render.yaml) Infrastructure-as-Code Blueprint.
+[`render.yaml`](./render.yaml) is a Render Blueprint. Fork the repo, then in Render choose
+**New → Blueprint** and pick the fork. It deploys the Docker image on the free plan with the `prod`
+profile, a generated `JWT_SECRET`, and health checks on `/actuator/health`.
 
-### Deploying via Render Blueprint:
-1. Fork or push this repository to your GitHub account.
-2. Sign in to [Render Dashboard](https://dashboard.render.com/).
-3. Click **New +** ➔ **Blueprint**.
-4. Connect your `TaskNova` repository.
-5. Render detects [`render.yaml`](./render.yaml) and creates the web service automatically on the **Free Tier**.
-6. The service starts, performs health checks via `/actuator/health`, and provides you with a public URL!
+The free plan has no persistent disk, so the blueprint runs H2 **in memory**: data resets on every
+restart, which suits a public demo. For real use, add a disk, set `H2_DB_PATH` to a path on it, remove
+the in-memory datasource override, and set `ADMIN_PASSWORD` (see the comments in the blueprint).
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## Tests
 
-All settings can be customized via environment variables or in `src/main/resources/application.properties`:
+```bash
+./mvnw test
+```
 
-| Variable | Default Value | Description |
-| :--- | :--- | :--- |
-| `SERVER_PORT` | `8080` | Port on which the application listens |
-| `SPRING_DATASOURCE_URL` | `jdbc:h2:file:./data/tasknova;...` | H2 JDBC Connection URL |
-| `SPRING_DATASOURCE_USERNAME` | `sa` | Database username |
-| `SPRING_DATASOURCE_PASSWORD` | *(empty)* | Database password |
-| `JWT_SECRET` | *(Auto-generated default)* | 256-bit secret key for HMAC signing |
-| `JWT_EXPIRATION_MS` | `86400000` (24 hours) | JWT token lifespan in milliseconds |
-| `SPRING_H2_CONSOLE_ENABLED` | `true` | Enable `/h2-console` (set `false` in prod) |
-| `LOGGING_LEVEL_COM_TASKNOVA` | `DEBUG` (`INFO` on Render) | Root package logging verbosity |
+The 31 integration tests (MockMvc against an in-memory database) cover sign-in by email and by
+username, cookie flags, rendering of every page, the 401/404/400 error paths, assignment visibility
+and permissions, PUT/PATCH semantics, relative due days, tag validation, admin self-protection,
+case-insensitive registration, and profile updates.
 
 ---
 
-## 📁 Project Directory Structure
+## Project layout
 
 ```text
 TaskNova/
-├── .mvn/wrapper/                  # Maven wrapper binaries & properties
-├── Dockerfile                     # Multi-stage Docker production build
-├── render.yaml                    # Render Blueprint IaC configuration
-├── pom.xml                        # Maven dependencies & build plugins
-├── mvnw.cmd                       # Maven wrapper Windows script
-├── src/
-│   ├── main/
-│   │   ├── java/com/tasknova/
-│   │   │   ├── TasknovaApplication.java      # Application entrypoint (@EnableAsync)
-│   │   │   ├── aop/                          # AOP Logging & Audit Interceptors
-│   │   │   ├── config/                       # Security, JWT, JPA Auditing configs
-│   │   │   ├── controller/
-│   │   │   │   ├── AdminController.java      # Thymeleaf Admin portal controller
-│   │   │   │   ├── AuthController.java       # Thymeleaf Auth page controller
-│   │   │   │   ├── DashboardController.java  # Thymeleaf User dashboard controller
-│   │   │   │   ├── TaskController.java       # Thymeleaf Task view controller
-│   │   │   │   └── api/                      # REST API Controllers (Auth, Task, Admin)
-│   │   │   ├── dto/                          # Request / Response DTOs
-│   │   │   ├── entity/                       # JPA Entities (User, Task, Tag, AuditLog)
-│   │   │   ├── exception/                    # Global Exception Handler & Custom Errors
-│   │   │   ├── repository/                   # Spring Data JPA Repositories
-│   │   │   ├── security/                     # UserDetailsService & JWT Filters
-│   │   │   ├── seed/                         # DataSeeder (idempotent demo users & tasks)
-│   │   │   └── service/                      # Core business services & interfaces
-│   │   └── resources/
-│   │       ├── application.properties        # Application configurations
-│   │       ├── static/                       # CSS design system & JavaScript assets
-│   │       └── templates/                    # Thymeleaf HTML views (User, Admin, Auth)
-│   └── test/                                 # Unit & Integration tests
-└── README.md
+├── Dockerfile · render.yaml · pom.xml · mvnw · mvnw.cmd
+├── docs/screenshots/
+└── src/
+    ├── main/java/com/tasknova/
+    │   ├── aop/            Logging aspect, @Auditable + AuditAspect
+    │   ├── config/         Security, JWT settings, JPA auditing, shared model attributes
+    │   ├── controller/     Page controllers (Home, Dashboard, Task, Profile, Auth, Admin)
+    │   │   └── api/        REST controllers (Auth, Task, User, Tag, Admin)
+    │   ├── dto/            Request/response objects
+    │   ├── entity/         User, Task, Tag, AuditLog (+ enums)
+    │   ├── exception/      GlobalExceptionHandler and custom exceptions
+    │   ├── repository/     Spring Data repositories
+    │   ├── security/       JWT filter, token provider, cookie service, UserDetailsService
+    │   ├── seed/           DataSeeder
+    │   └── service/        Task, User, Auth, Admin, Audit services
+    ├── main/resources/
+    │   ├── static/         css/main.css · js/*.js · assets/ (icon sprite, favicon)
+    │   └── templates/      layout/ · fragments/ · user/ · admin/ · auth/ · error/
+    └── test/               Integration tests
 ```
 
 ---
 
-## 🤝 Contributing & License
+## License
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/MalayShikharSoni/TaskNova/issues).
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
+[MIT](./LICENSE). Contributions and issues are welcome on the
+[issues page](https://github.com/MalayShikharSoni/TaskNova/issues).
 
 <p align="center">
-  Crafted with ❤️ by <a href="https://github.com/MalayShikharSoni">Malay Shikhar Soni</a>
+  Crafted by <a href="https://github.com/MalayShikharSoni">Malay Shikhar Soni</a>
 </p>

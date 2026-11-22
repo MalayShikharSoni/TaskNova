@@ -5,6 +5,8 @@ import com.tasknova.dto.admin.AuditLogDto;
 import com.tasknova.dto.task.TaskResponseDto;
 import com.tasknova.dto.user.UserResponseDto;
 import com.tasknova.entity.enums.Role;
+import com.tasknova.entity.enums.TaskStatus;
+import com.tasknova.exception.ValidationException;
 import com.tasknova.service.AdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -14,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,7 +28,8 @@ import java.util.Map;
  * <p>GET    /api/admin/users/{id}       — single user
  * <p>PATCH  /api/admin/users/{id}/toggle-active — activate/deactivate
  * <p>PATCH  /api/admin/users/{id}/role  — change role
- * <p>GET    /api/admin/tasks            — all tasks (system-wide)
+ * <p>GET    /api/admin/users/assignable — active users for task assignment
+ * <p>GET    /api/admin/tasks            — all tasks (system-wide; ?search, ?status)
  * <p>GET    /api/admin/audit-logs       — audit trail
  */
 @RestController
@@ -77,7 +81,7 @@ public class AdminApiController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        Role newRole = Role.valueOf(body.get("role").toUpperCase());
+        Role newRole = parseRole(body == null ? null : body.get("role"));
         UserResponseDto updated = adminService.changeUserRole(id, newRole, userDetails.getUsername());
         return ResponseEntity.ok(updated);
     }
@@ -89,9 +93,16 @@ public class AdminApiController {
     @GetMapping("/tasks")
     public ResponseEntity<Page<TaskResponseDto>> getAllTasks(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) TaskStatus status,
             @RequestParam(defaultValue = "0") int page
     ) {
-        return ResponseEntity.ok(adminService.getAllTasks(search, page));
+        return ResponseEntity.ok(adminService.getAllTasks(search, status, page));
+    }
+
+    /** Active users that tasks can be assigned to. */
+    @GetMapping("/users/assignable")
+    public ResponseEntity<List<UserResponseDto>> getAssignableUsers() {
+        return ResponseEntity.ok(adminService.getAssignableUsers());
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -107,5 +118,16 @@ public class AdminApiController {
                 ? adminService.getAuditLogsByActor(actor, page)
                 : adminService.getAuditLogs(page);
         return ResponseEntity.ok(logs);
+    }
+
+    private static Role parseRole(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new ValidationException("Body must include a role: USER or ADMIN.");
+        }
+        try {
+            return Role.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Unknown role '" + raw + "'. Use USER or ADMIN.");
+        }
     }
 }

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+
+<aside class="sidebar" id="sidebar" th:fragment="sidebar"
+       th:attr="data-admin=${currentUser != null and currentUser.admin}"
+       th:with="uri=${currentUri != null ? currentUri : ''}">
+
+    <a href="/" class="brand" aria-label="TaskNova home">
+        <span class="brand-mark"><svg class="i"><use href="/assets/icons.svg#i-nova"/></svg></span>
+        <span class="brand-name">Task<em>Nova</em></span>
+    </a>
+
+    <button class="jump" type="button" data-cmdk-open aria-label="Search or jump to (Ctrl+K)">
+        <svg class="i i-sm"><use href="/assets/icons.svg#i-search"/></svg>
+        <span>Search or jump…</span>
+        <span class="kbd">Ctrl K</span>
+    </button>
+
+    <p class="nav-label">Workspace</p>
+    <ul class="nav">
+        <li>
+            <a href="/dashboard" th:classappend="${uri == '/dashboard'} ? 'active'">
+                <svg class="i"><use href="/assets/icons.svg#i-home"/></svg><span>Today</span>
+                <b class="badge badge--hot" th:if="${currentUser != null and currentUser.overdueTasks > 0}"
+                   th:text="${currentUser.overdueTasks}" th:title="${currentUser.overdueTasks + ' overdue'}">1</b>
+            </a>
+        </li>
+        <li>
+            <a href="/tasks"
+               th:classappend="${uri == '/tasks' or (uri.startsWith('/tasks/') and uri != '/tasks/board')} ? 'active'">
+                <svg class="i"><use href="/assets/icons.svg#i-list"/></svg><span>All tasks</span>
+                <b class="badge" th:if="${currentUser != null and currentUser.openTasks > 0}"
+                   th:text="${currentUser.openTasks}" th:title="${currentUser.openTasks + ' open'}">6</b>
+            </a>
+        </li>
+        <li>
+            <a href="/tasks/board" th:classappend="${uri == '/tasks/board'} ? 'active'">
+                <svg class="i"><use href="/assets/icons.svg#i-board"/></svg><span>Board</span>
+            </a>
+        </li>
+        <li>
+            <a href="/profile" th:classappend="${uri == '/profile'} ? 'active'">
+                <svg class="i"><use href="/assets/icons.svg#i-settings"/></svg><span>Account</span>
+            </a>
+        </li>
+    </ul>
+
+    <th:block sec:authorize="hasRole('ADMIN')">
+        <p class="nav-label">Admin</p>
+        <ul class="nav">
+            <li>
+                <a href="/admin" th:classappend="${uri == '/admin'} ? 'active'">
+                    <svg class="i"><use href="/assets/icons.svg#i-shield"/></svg><span>Overview</span>
+                </a>
+            </li>
+            <li>
+                <a href="/admin/users" th:classappend="${uri.startsWith('/admin/users')} ? 'active'">
+                    <svg class="i"><use href="/assets/icons.svg#i-users"/></svg><span>People</span>
+                </a>
+            </li>
+            <li>
+                <a href="/admin/tasks" th:classappend="${uri.startsWith('/admin/tasks')} ? 'active'">
+                    <svg class="i"><use href="/assets/icons.svg#i-board"/></svg><span>Every task</span>
+                </a>
+            </li>
+            <li>
+                <a href="/admin/audit-logs" th:classappend="${uri.startsWith('/admin/audit-logs')} ? 'active'">
+                    <svg class="i"><use href="/assets/icons.svg#i-log"/></svg><span>Audit log</span>
+                </a>
+            </li>
+        </ul>
+    </th:block>
+
+    <div class="sidebar-foot">
+        <div class="sidebar-tools">
+            <span class="mono">v1.1</span>
+            <button class="btn btn--quiet btn--sm" type="button" data-theme-toggle aria-label="Toggle dark mode">
+                <svg class="i i-sm theme-icon-dark"><use href="/assets/icons.svg#i-moon"/></svg>
+                <svg class="i i-sm theme-icon-light"><use href="/assets/icons.svg#i-sun"/></svg>
+                <span class="theme-label">Theme</span>
+            </button>
+        </div>
+        <div class="me" th:if="${currentUser != null}">
+            <span class="avatar" th:attr="data-hue=${currentUser.id % 6}" th:text="${currentUser.initial}">D</span>
+            <a href="/profile" class="me-info">
+                <span class="me-name" th:text="${currentUser.username}">demo_user</span>
+                <span class="me-role" th:text="${currentUser.admin ? 'Administrator' : 'Member'}">Member</span>
+            </a>
+            <form action="/auth/logout" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button class="btn btn--quiet btn--sm btn--icon" type="submit" title="Sign out" aria-label="Sign out">
+                    <svg class="i"><use href="/assets/icons.svg#i-logout"/></svg>
+                </button>
+            </form>
+        </div>
+    </div>
+</aside>
+
+</body>
+</html>

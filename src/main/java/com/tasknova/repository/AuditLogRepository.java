@@ -11,5 +11,6 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Page<AuditLog> findAllByOrderByTimestampDesc(Pageable pageable);
 
-    Page<AuditLog> findAllByActorUsername(String actorUsername, Pageable pageable);
+    /** Partial, case-insensitive match so admins can filter by "demo" or a full email. */
+    Page<AuditLog> findAllByActorUsernameContainingIgnoreCase(String actorUsername, Pageable pageable);
 }

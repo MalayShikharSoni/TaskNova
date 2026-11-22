@@ -9,8 +9,15 @@ import java.time.LocalDate;
 import java.util.Set;
 
 /**
- * DTO for updating an existing task via PUT /api/tasks/{id}
- * All fields are optional — only non-null values will be applied.
+ * Body for {@code PUT} and {@code PATCH /api/tasks/{id}}.
+ *
+ * <ul>
+ *   <li><strong>PATCH</strong> — partial: only non-null fields are applied.</li>
+ *   <li><strong>PUT</strong> — replace: {@code title} is required; {@code description},
+ *       {@code dueDate} and {@code tagNames} are set exactly as sent (null clears them);
+ *       admins also replace {@code assigneeId} (null unassigns).
+ *       {@code priority}/{@code status} keep their value when omitted.</li>
+ * </ul>
  */
 @Data
 public class TaskUpdateDto {
@@ -27,7 +34,7 @@ public class TaskUpdateDto {
 
     private TaskStatus status;
 
-    /** Replaces the full tag set when provided */
+    /** Names of existing tags; replaces the full tag set when applied */
     private Set<String> tagNames;
 
     /** Only admins can change the assignee */

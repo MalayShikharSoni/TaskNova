@@ -7,7 +7,10 @@ import lombok.NoArgsConstructor;
 
 /**
  * Response body returned after a successful login.
- * The JWT token should be stored in localStorage by the client.
+ *
+ * <p>API clients send {@code token} as {@code Authorization: Bearer <token>}.
+ * Browsers don't need to touch it: the same token is also set as an
+ * HttpOnly {@code tasknova_jwt} cookie.
  */
 @Data
 @Builder

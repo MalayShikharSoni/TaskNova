@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/head :: head('Bad request')}"></head>
+<body>
+<main th:replace="~{fragments/error :: page('400', 'That didn’t quite parse', 'Something in that request was missing or malformed. Check it and try again.')}"></main>
+<script src="/js/main.js"></script>
+</body>
+</html>

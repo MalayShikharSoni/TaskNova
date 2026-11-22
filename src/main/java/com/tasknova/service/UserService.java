@@ -4,7 +4,6 @@ import com.tasknova.dto.user.UserResponseDto;
 import com.tasknova.dto.user.UserUpdateDto;
 import com.tasknova.entity.User;
 import com.tasknova.exception.ResourceNotFoundException;
-import com.tasknova.exception.UnauthorizedException;
 import com.tasknova.exception.ValidationException;
 import com.tasknova.repository.TaskRepository;
 import com.tasknova.repository.UserRepository;
@@ -55,7 +54,11 @@ public class UserService {
 
         // Username change
         if (dto.getUsername() != null && !dto.getUsername().equals(user.getUsername())) {
-            if (userRepository.existsByUsername(dto.getUsername())) {
+            // Login matches usernames case-insensitively, so uniqueness must too.
+            boolean takenByOther = userRepository.findByEmailOrUsername(dto.getUsername())
+                    .filter(other -> !other.getId().equals(userId))
+                    .isPresent();
+            if (takenByOther) {
                 throw new ValidationException("Username '" + dto.getUsername() + "' is already taken.");
             }
             user.setUsername(dto.getUsername());
@@ -67,7 +70,7 @@ public class UserService {
                 throw new ValidationException("Current password is required to set a new password.");
             }
             if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPassword())) {
-                throw new UnauthorizedException("Current password is incorrect.");
+                throw new ValidationException("Current password is incorrect.");
             }
             user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
             log.info("Password changed for user: {}", user.getEmail());

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/* ── Status pill ─────────────────────────────────────────── */-->
+<span th:fragment="status(t)" class="pill"
+      th:classappend="${'pill--' + #strings.toLowerCase(#strings.replace(t.status.name(), '_', '-'))}"
+      th:text="${t.statusLabel}">To Do</span>
+
+<!--/* ── Priority bars ───────────────────────────────────────── */-->
+<span th:fragment="prio(p)" class="prio" th:classappend="${'prio--' + #strings.toLowerCase(p.name())}"
+      th:title="${#strings.capitalize(#strings.toLowerCase(p.name())) + ' priority'}">
+    <span class="prio-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span th:text="${#strings.toLowerCase(p.name())}">medium</span>
+</span>
+
+<!--/* ── Tags ────────────────────────────────────────────────── */-->
+<span th:fragment="tags(list)" class="tags" th:if="${list != null and !list.isEmpty()}">
+    <span th:each="tg : ${list}" class="tag" th:style="'--tag:' + ${tg.color}" th:text="${tg.name}">tag</span>
+</span>
+
+<!--/* ── Due date ────────────────────────────────────────────── */-->
+<span th:fragment="due(t)" th:if="${t.dueDate != null}" class="due" th:classappend="${t.overdue} ? 'due--overdue'"
+      th:title="${'Due ' + #temporals.format(t.dueDate, 'EEEE d MMMM yyyy')}">
+    <svg class="i"><use th:href="${t.overdue} ? '/assets/icons.svg#i-alert' : '/assets/icons.svg#i-calendar'"/></svg>
+    <span th:with="d=${t.dueInDays}, done=${t.status.name() == 'DONE'}"
+          th:text="${done or d == null or d > 6 or d < -6 ? #temporals.format(t.dueDate, 'd MMM') :
+                     (d == 0 ? 'Today' : (d == 1 ? 'Tomorrow' :
+                     (d < 0 ? (-d) + 'd late' : 'In ' + d + ' days')))}">12 Nov</span>
+</span>
+
+<!--/* ── Task row (lists) ────────────────────────────────────── */-->
+<li th:fragment="taskRow(t)" class="row" th:id="'task-' + ${t.id}"
+    th:classappend="${t.status.name() == 'DONE'} ? 'is-done'"
+    th:attr="data-task-id=${t.id},data-title=${t.title},data-status=${t.status}">
+    <button class="check" type="button" role="checkbox" data-action="toggle-done"
+            th:attr="aria-checked=${t.status.name() == 'DONE'}"
+            th:aria-label="${t.status.name() == 'DONE'} ? 'Mark as not done' : 'Mark as done'">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.8c1.9 1.3 3.3 2.9 4.6 4.9 2.5-5.1 5.9-8.8 10.6-12.2"/></svg>
+    </button>
+    <div class="row-main">
+        <a class="row-title" th:href="@{/tasks/{id}(id=${t.id})}" th:text="${t.title}">Task title</a>
+        <div class="row-meta">
+            <span th:replace="~{fragments/ui :: prio(${t.priority})}"></span>
+            <span th:replace="~{fragments/ui :: due(${t})}"></span>
+            <span th:replace="~{fragments/ui :: tags(${t.tagDetails})}"></span>
+            <span class="assigned-note"
+                  th:if="${currentUser != null and t.assigneeId != null and t.assigneeId == currentUser.id and t.ownerId != currentUser.id}"
+                  th:text="${'↘ from ' + t.ownerUsername}">from admin</span>
+            <span class="assigned-note"
+                  th:if="${currentUser != null and t.assigneeId != null and t.assigneeId != currentUser.id}"
+                  th:text="${'→ ' + t.assigneeUsername}">→ someone</span>
+        </div>
+    </div>
+    <div class="row-side">
+        <span th:replace="~{fragments/ui :: status(${t})}"></span>
+        <div class="row-actions">
+            <a class="btn btn--quiet btn--sm btn--icon" th:href="@{/tasks/{id}(id=${t.id})}" title="Open" aria-label="Open task">
+                <svg class="i"><use href="/assets/icons.svg#i-pen"/></svg>
+            </a>
+            <button class="btn btn--quiet btn--sm btn--icon" type="button" data-action="delete" title="Delete" aria-label="Delete task"
+                    th:if="${currentUser != null and (currentUser.admin or t.ownerId == currentUser.id)}">
+                <svg class="i"><use href="/assets/icons.svg#i-trash"/></svg>
+            </button>
+        </div>
+    </div>
+</li>
+
+<!--/* ── Create-task dialog (needs ${allTags}) ───────────────── */-->
+<dialog th:fragment="createModal" class="modal" id="createTaskDialog" aria-labelledby="createTaskTitle">
+    <form id="createTaskForm" novalidate>
+        <div class="modal-head">
+            <div>
+                <p class="kicker">New entry</p>
+                <h2 id="createTaskTitle">What needs doing?</h2>
+            </div>
+            <button class="btn btn--quiet btn--icon" type="button" data-close aria-label="Close">
+                <svg class="i"><use href="/assets/icons.svg#i-x"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="field">
+                <label class="label" for="ctTitle"><span>Title <span class="req">*</span></span></label>
+                <input class="input" id="ctTitle" name="title" maxlength="200" placeholder="e.g. Draft the onboarding email" autocomplete="off" required/>
+                <span class="error-text" data-error-for="title"></span>
+            </div>
+            <div class="field">
+                <label class="label" for="ctDesc">Notes</label>
+                <textarea class="input" id="ctDesc" name="description" rows="3" maxlength="5000" placeholder="Anything future-you should know…"></textarea>
+            </div>
+            <div class="grid-2">
+                <div class="field">
+                    <label class="label" for="ctDue">Due</label>
+                    <input class="input" type="date" id="ctDue" name="dueDate"/>
+                    <span class="error-text" data-error-for="dueDate"></span>
+                </div>
+                <div class="field">
+                    <label class="label" for="ctPriority">Priority</label>
+                    <select class="input" id="ctPriority" name="priority">
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM" selected>Medium</option>
+                        <option value="HIGH">High</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field" th:if="${allTags != null and !allTags.isEmpty()}">
+                <span class="label">Tags</span>
+                <div class="tag-picker" data-tag-picker>
+                    <button type="button" class="tag-toggle" aria-pressed="false"
+                            th:each="tg : ${allTags}" th:attr="data-tag=${tg.name}" th:style="'--tag:' + ${tg.color}"
+                            th:text="${tg.name}">tag</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+            <button class="btn btn--primary" type="submit">
+                <span class="spinner"></span><span class="btn-label">Add task</span>
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<!--/* ── Audit timeline item ─────────────────────────────────── */-->
+<li th:fragment="auditItem(log)" class="tl-item"
+    th:with="a=${log.action}"
+    th:classappend="${a.contains('DELETE') or a.contains('DEACTIVATED')} ? 'tl-item--delete' :
+                    (${a.contains('CREATE') or a.contains('REGISTER') or a.contains('ACTIVATED')} ? 'tl-item--create' :
+                    (${a.contains('STATUS')} ? 'tl-item--status' :
+                    (${a.contains('LOGIN')} ? 'tl-item--login' : 'tl-item--user')))">
+    <span class="tl-time">
+        <b th:text="${#temporals.format(log.timestamp, 'HH:mm')}">14:02</b>
+        <span th:text="${#temporals.format(log.timestamp, 'd MMM')}">12 Nov</span>
+    </span>
+    <span class="tl-dot" aria-hidden="true"></span>
+    <div class="tl-body">
+        <span class="tl-action" th:text="${#strings.replace(a, '_', ' ')}">TASK CREATED</span>
+        <span class="muted mono" th:if="${log.targetType != null}"
+              th:text="${' · ' + log.targetType + (log.targetId != null ? ' #' + log.targetId : '')}"> · Task #4</span>
+        <p class="tl-detail" th:text="${log.details ?: '—'}">Task created: Write docs</p>
+        <p class="tl-actor">by <b th:text="${log.actorUsername}">demo@tasknova.com</b></p>
+    </div>
+</li>
+
+<!--/* ── Empty-state illustrations (hand-drawn line art) ─────── */-->
+<svg th:fragment="artPlane" class="art" viewBox="0 0 150 110" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path class="fill-accent" d="M18 58 128 18 96 92 72 70z"/>
+    <path d="M18 58 128 18 96 92 72 70z"/>
+    <path d="M128 18 72 70l-6 22 10-15"/>
+    <path d="M10 92c12-6 22-4 30 2s18 6 26-2" stroke-dasharray="2 6"/>
+    <path d="M118 96l3 3m0-3-3 3M136 64l2 2m0-2-2 2"/>
+</svg>
+
+<svg th:fragment="artCup" class="art" viewBox="0 0 150 110" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path class="fill-accent" d="M44 46h52l-5 44c-.5 4-3.5 6-7.5 6H56.5c-4 0-7-2-7.5-6z"/>
+    <path d="M44 46h52l-5 44c-.5 4-3.5 6-7.5 6H56.5c-4 0-7-2-7.5-6z"/>
+    <path d="M95 56c10-2 15 3 13 11s-9 10-16 8"/>
+    <path d="M58 36c-4-6 4-9 0-16M70 34c-4-6 4-9 0-16M82 36c-4-6 4-9 0-16"/>
+    <path d="M30 100h90"/>
+</svg>
+
+<svg th:fragment="artMagnifier" class="art" viewBox="0 0 150 110" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle class="fill-accent" cx="64" cy="48" r="26"/>
+    <circle cx="64" cy="48" r="26"/>
+    <path d="m84 67 26 26"/>
+    <path d="M52 40c3-5 8-7 13-7" />
+    <path d="M24 98h40M100 30l4-4m0 4-4-4"/>
+</svg>
+
+</body>
+</html>

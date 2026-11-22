@@ -1,21 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>404 Not Found | TaskNova</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" th:href="@{/css/main.css}"/>
-</head>
-<body class="error-body">
-<div class="error-page">
-    <div class="error-code">404</div>
-    <h1 class="error-title">Page Not Found</h1>
-    <p class="error-message" th:text="${errorMessage ?: 'The page you are looking for does not exist or has been moved.'}">Not found.</p>
-    <div class="error-actions">
-        <a href="javascript:history.back()" class="btn btn--ghost">← Go Back</a>
-        <a th:href="@{/dashboard}" class="btn btn--primary">Go to Dashboard</a>
-    </div>
-</div>
+<head th:replace="~{fragments/head :: head('Not found')}"></head>
+<body>
+<main th:replace="~{fragments/error :: page('404', 'This page wandered off', 'The page you’re looking for doesn’t exist, or it moved somewhere else.')}"></main>
+<script src="/js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+<main class="error-page" th:fragment="page(code, heading, fallback)">
+    <div class="error-inner reveal-up">
+        <p class="kicker" style="justify-content:center;margin-bottom:1rem">
+            <span>TaskNova</span><span class="dot"></span><span th:text="${'Error ' + code}">Error 404</span>
+        </p>
+        <div class="error-code" th:text="${code}">404</div>
+        <h1 th:text="${heading}">Page not found</h1>
+        <p th:text="${errorMessage != null and !#strings.isEmpty(errorMessage) ? errorMessage : fallback}">Message</p>
+        <div class="error-actions">
+            <a href="javascript:history.back()" class="btn btn--ghost">
+                <svg class="i"><use href="/assets/icons.svg#i-arrow-left"/></svg> Go back
+            </a>
+            <a href="/" class="btn btn--primary">Take me home</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>
